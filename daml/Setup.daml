@@ -1,94 +1,328 @@
 module Setup where
 
-import DA.Optional (fromSomeNote)
-import qualified DA.Text as T
+import Scheduling
 import Daml.Script
 
--- | A record containing all the parties that we will use in our script
-data Parties = Parties
-  with
-    alice : Party
-    bob : Party
-    charlie: Party
-    public: Party
+{--
 
--- | A test user for the create-daml-app network.
--- When a participantName is provided, the testUser will be created/or fetched
--- on the given participant.
-data TestUser = TestUser with
-  alias : Text
-  public : Party
-  participantName: Optional ParticipantName
+  Setup parties
 
-defaultParticipant : Optional ParticipantName
-defaultParticipant = None
--- | Create a public party, then create three test users.
+--}
+data TestParties = TestParties with
+  houseParty: Party
+  usersParty: [Party]
 
-setup : Script Parties
-setup = do
-  public <- createPublic defaultParticipant
-  -- In the getting started guide, we only have one participant so we set the participant name to None.
-  -- If you are running this against a ledger with multiple participants, specify the participant the parties
-  -- should be hosted on.
-  alice <- createTestUser $ TestUser "Alice" public defaultParticipant
-  bob <- createTestUser $ TestUser "Bob" public defaultParticipant
-  charlie <- createTestUser $ TestUser "Charlie" public defaultParticipant
-  pure $ Parties with
-    alice
-    bob
-    charlie
-    public
+setupTestParties = script do
+  houseParty <- allocatePartyWithHint "House" (PartyIdHint "House")
+  userA <- allocatePartyWithHint "UserA" (PartyIdHint "UserA")
+  userB <- allocatePartyWithHint "UserB" (PartyIdHint "UserB")
+  userC <- allocatePartyWithHint "UserC" (PartyIdHint "UserC")
+  let
+    usersParty = [userA, userB, userC]
+  return TestParties with
+    ..
 
--- | Create a test user.
-createTestUser : TestUser -> Script Party
-createTestUser TestUser{alias, public, participantName} = do
-  u <- getOrCreateUser alias (Some public) participantName
-  let p = getPrimaryParty u
-  pure p
+{--
 
--- | Create the public party.
-createPublic : Optional ParticipantName -> Script Party
-createPublic participantName = do
-  publicUser <- getOrCreateUser "Public" None participantName
-  pure $ getPrimaryParty publicUser
+  Setup racing teams
 
+--}
+data TestTeams = TestTeams with
+  redbull: Team
+  ferrari: Team
+  mercedes: Team
+  mclaren: Team
 
--- | Get a user by their id. If the user doesn't exist, it is created.
-getOrCreateUser : Text -> Optional Party -> Optional ParticipantName -> Script User
-getOrCreateUser alias publicM participantNameM = do
-  userId <- validateUserId $ toUserId alias
-  try
-    getUser_ userId participantNameM
-  catch
-    UserNotFound _ -> do
-      p <- allocateParty_ alias participantNameM
-      let u = User userId (Some p)
-      let rights  = CanActAs p :: [CanReadAs public | Some public <- [publicM]]
-      createUser_ u rights participantNameM
-      pure u
+setupTeams = script do
+  let
+    redbull = Team with
+      name = "Oracle Red Bull Racing"
+      carScore = 10.00
+      strategyScore = 10.00
 
-getUser_ : UserId -> Optional ParticipantName -> Script User
-getUser_  userId participantNameM = do
-  case participantNameM of
-    Some participantName -> getUserOn userId participantName
-    None -> getUser userId
+    ferrari = Team with
+      name = "Scuderia Ferrari"
+      carScore = 7.50
+      strategyScore = 6.50
 
-allocateParty_ : Text -> Optional ParticipantName -> Script Party
-allocateParty_ alias participantNameM = do
-  case participantNameM of
-    Some participantName -> allocatePartyOn alias participantName
-    None -> allocateParty alias
+    mercedes = Team with
+      name = "Mercedes AMG Petronas F1 Team"
+      carScore = 8.00
+      strategyScore = 9.00
 
-createUser_ : User -> [UserRight] ->  Optional ParticipantName -> Script ()
-createUser_ user rights participantNameM = do
-  case participantNameM of
-    Some participantName -> createUserOn user rights participantName
-    None -> createUser user rights
+    mclaren = Team with
+      name = "McLaren Racing Limited"
+      carScore = 6.00
+      strategyScore = 6.00
 
--- | Convert a text to a valid user id.
-toUserId : Text -> Text
-toUserId = T.asciiToLower
+  return TestTeams with
+    ..
+{--
 
--- | Try to get the primary party of a user and fail if the user has no associated primary party.
-getPrimaryParty : User -> Party
-getPrimaryParty u = fromSomeNote ("User " <> userIdToText u.userId <> " is missing a primary party.") u.primaryParty
+  Setup track information for each racetrack
+
+--}
+data TestTrackInfos = TestTrackInfos with
+  spa: TrackInfo
+  monaco: TrackInfo
+  silverstone: TrackInfo
+
+setupTestTrackInfo = script do
+  let
+    spa = TrackInfo with
+      year = 1921
+      country = "Belgium"
+      trackName = "Circuit de Spa-Francorchamps"
+      lengthKM = 14.982
+
+    monaco = TrackInfo with
+      year = 1929
+      country = "Monaco"
+      trackName = "Circuit de Monaco"
+      lengthKM = 3.337
+
+    silverstone = TrackInfo with
+      year = 1947
+      country = "England"
+      trackName = "Silverstone Circuit"
+      lengthKM = 5.891
+  return TestTrackInfos with
+    ..
+
+{--
+
+  Setup racers
+
+--}
+
+data TestRacers = TestRacers with
+  verstappen: Racer
+  perez: Racer
+  leclerc: Racer
+  sainz: Racer
+  hamilton: Racer
+  russell: Racer
+  norris: Racer
+  piastri: Racer
+
+setupTestRacers = script do
+  (testTeams@TestTeams{..}) <- setupTeams
+  let
+    verstappen = Racer with
+      name = "Max Emilian Verstappen"
+      speedScore = 10.00
+      team = redbull
+      number = 1
+      championshipStanding = 0
+
+    perez = Racer with
+      name = "Sergio Michel Pérez Mendoza"
+      speedScore = 8.00
+      team = redbull
+      number = 11
+      championshipStanding = 0
+
+    leclerc = Racer with
+      name = "Charles Marc Hervé Perceval Leclerc "
+      speedScore = 8.50
+      team = ferrari
+      number = 16
+      championshipStanding = 0
+
+    sainz = Racer with
+      name = "Carlos Sainz Vázquez de Castro"
+      speedScore = 7.50
+      team = ferrari
+      number = 55
+      championshipStanding = 0
+
+    hamilton = Racer with
+      name = "Lewis Carl Davidson Hamilton"
+      speedScore = 9.50
+      team = mercedes
+      number = 44
+      championshipStanding = 0
+
+    russell = Racer with
+      name = "George William Russell"
+      speedScore = 8.50
+      team = mercedes
+      number = 63
+      championshipStanding = 0
+
+    norris = Racer with
+      name = "Lando Norris"
+      speedScore = 7.00
+      team = mclaren
+      number = 4
+      championshipStanding = 0
+
+    piastri = Racer with
+      name = "Oscar Jack Piastri"
+      speedScore = 5.00
+      team = mclaren
+      number = 81
+      championshipStanding = 0
+
+  return TestRacers with
+    ..
+
+{--
+
+  Setup racer positions for leaderboards
+
+--}
+
+data TestRacerPositions = TestRacerPositions with
+  verstappenPos: RacerPosition
+  perezPos: RacerPosition
+  leclercPos: RacerPosition
+  sainzPos: RacerPosition
+  hamiltonPos: RacerPosition
+  russellPos: RacerPosition
+  norrisPos: RacerPosition
+  piastriPos: RacerPosition
+
+setupRacerPositions = script do
+  (testRacers@TestRacers{..}) <- setupTestRacers
+  let
+    verstappenPos = RacerPosition with
+      racer = verstappen
+      position = 1
+
+    perezPos = RacerPosition with
+      racer = perez
+      position = 2
+
+    leclercPos = RacerPosition with
+      racer = leclerc
+      position = 4
+
+    sainzPos = RacerPosition with
+      racer = sainz
+      position = 6
+
+    hamiltonPos = RacerPosition with
+      racer = hamilton
+      position = 3
+
+    russellPos = RacerPosition with
+      racer = russell
+      position = 5
+
+    norrisPos = RacerPosition with
+      racer = norris
+      position = 7
+
+    piastriPos = RacerPosition with
+      racer = piastri
+      position = 8
+    
+    racerPos = [verstappenPos, perezPos, hamiltonPos, leclercPos, russellPos, norrisPos, piastriPos]
+
+  return racerPos
+
+{--
+
+  Setup leaderboards for each race
+
+--}
+
+data TestLeaderboards = TestLeaderboards with
+  spaLeaderboard: ContractId Leaderboard
+  monacoLeaderboard: ContractId Leaderboard
+  silverstoneLeaderboard: ContractId Leaderboard
+
+setupRaceLeaderboards = script do
+  (testParties@TestParties{..}) <- setupTestParties
+  (testTrackInfos@TestTrackInfos{..}) <- setupTestTrackInfo
+  positions <- setupRacerPositions
+
+  spaLeaderboard <- submit houseParty do
+    createCmd Leaderboard with
+      house = houseParty
+      users = usersParty
+      positions
+      isRaceLeaderboard = True
+  
+  monacoLeaderboard <- submit houseParty do
+    createCmd Leaderboard with
+      house = houseParty
+      users = usersParty
+      positions
+      isRaceLeaderboard = True
+
+  silverstoneLeaderboard <- submit houseParty do
+    createCmd Leaderboard with
+      house = houseParty
+      users = usersParty
+      positions
+      isRaceLeaderboard = True
+  
+  championshipLeaderboard <- submit houseParty do
+    createCmd Leaderboard with
+      house = houseParty
+      users = usersParty
+      positions
+      isRaceLeaderboard = False
+  
+  return (testParties, spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard)
+
+{--
+
+  Setup races 
+
+--}
+
+data TestRaces = TestRaces with
+  spa: Race
+  monaco: Race
+  silverstone: Race
+
+setupTestRaces = script do
+  (testParties@TestParties{..}, spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
+  (testTrackInfos@TestTrackInfos{..}) <- setupTestTrackInfo
+
+  spaRace <- submit houseParty do
+    createCmd Race with
+      house = houseParty
+      users = usersParty
+      trackInfo = spa
+      leaderboard = spaLeaderboard
+  
+  monacoRace <- submit houseParty do
+    createCmd Race with
+      house = houseParty
+      users = usersParty
+      trackInfo = monaco
+      leaderboard = monacoLeaderboard
+  
+  silverstoneRace <- submit houseParty do
+    createCmd Race with
+      house = houseParty
+      users = usersParty
+      trackInfo = silverstone
+      leaderboard = silverstoneLeaderboard
+  
+  return (testParties, spaRace, monacoRace, silverstoneRace, championshipLeaderboard)
+
+{--
+
+  Setup season
+
+--}
+
+setupSeason = script do
+  (testParties@TestParties{..}, spaRace, monacoRace, silverstoneRace, championshipLeaderboard) <- setupTestRaces
+  (testRacers@TestRacers{..}) <- setupTestRacers
+
+  seasonCid <- submit houseParty do
+    createCmd Season with
+      house = houseParty
+      users = usersParty
+      year = 2023
+      races = [spaRace, monacoRace, silverstoneRace]
+      racers = [verstappen, perez, hamilton, russell, leclerc, sainz, norris, piastri]
+      championshipStandings = championshipLeaderboard
+
+  return (testParties, seasonCid)

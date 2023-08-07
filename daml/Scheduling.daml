@@ -1,0 +1,78 @@
+module Scheduling where
+
+import DA.Set as Set
+import DA.Map as Map
+
+data Team = Team with
+  name: Text
+  carScore: Decimal
+  strategyScore: Decimal
+    deriving (Show, Eq)
+
+
+data Racer = Racer with
+  name: Text
+  speedScore: Decimal
+  team: Team
+  number: Int
+  championshipStanding: Int
+    deriving (Show, Eq)
+
+
+data RacerPosition = RacerPosition with
+  racer: Racer
+  position: Int
+    deriving (Show, Eq)
+
+
+data TrackInfo = TrackInfo with
+  year: Int
+  country: Text
+  trackName: Text
+  lengthKM: Decimal
+    deriving (Show, Eq)
+
+
+class Odds i o where
+  getWinOdds: i -> o 
+
+
+instance Odds Racer Decimal where
+  getWinOdds racer = (racer.speedScore + racer.team.carScore + racer.team.strategyScore)/3.0
+
+template Leaderboard
+  with
+    house: Party
+    users: [Party]
+    positions: [RacerPosition]
+    isRaceLeaderboard: Bool
+
+  where
+    signatory house
+    observer users
+
+template Race
+  with
+    house: Party
+    users: [Party]
+    trackInfo: TrackInfo
+    leaderboard: ContractId Leaderboard
+
+  where
+    signatory house
+    observer users
+    
+
+template Season
+  with
+    house: Party
+    users: [Party]
+    year: Int
+    races: [ContractId Race]
+    racers: [Racer]
+    championshipStandings: ContractId Leaderboard
+
+  where
+    signatory house
+    observer users
+    
