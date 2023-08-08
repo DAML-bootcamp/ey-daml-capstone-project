@@ -2,14 +2,13 @@ module BetAccount where
 
 import Account
 
-template BetAccount
+template BetAccounts
   with
     users : [Party]
-    userAccounts : [Account]
-    amount : Int
+    amount : Decimal
     house : Party
   where
-    signatory house,[users]
+    signatory house,users
 
 {-     choice Payout : [ContractId Account]
       with
@@ -18,9 +17,10 @@ template BetAccount
       controller house
       do
       
-        create [Account | acc <- userAccounts] -}
+        create [Account | acc <- userAccounts] 
+-}
 
-    nonconsuming choice SubmitPayment : ContractId Account.Transfer
+    choice SubmitPayment : ContractId Account.Transfer
       with
         userAccount : Account
         user :Party
@@ -28,7 +28,9 @@ template BetAccount
        
       controller user
       do
+    
         create Account.Transfer with
           asset=userAccount
           receipent=house
+        
 
