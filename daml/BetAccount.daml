@@ -1,7 +1,8 @@
 module BetAccount where
 
 import Account
-
+import DA.Foldable (forA_)
+import DA.Action (foldlA, when)
 template BetAccounts
   with
     users : [Party]
@@ -10,15 +11,56 @@ template BetAccounts
   where
     signatory house,users
 
-{-     choice Payout : [ContractId Account]
-      with
-        amount : Int
-        house:Party
-      controller house
-      do
-      
-        create [Account | acc <- userAccounts] 
--}
+      choice Payout : [ContractId Account.Transfer] --Payout choice will generate transfer proposals for bet winners
+        with
+            accountsCid : [ContractId]
+            winners:[Party]
+        controller house
+            do
+                let 
+                        CreateTransferProposals accountsCid winner = do
+                            receipentAccount <- fetch accountsCid 
+                            aT<-create Account.Transfer with
+                                    asset=receipentAccount
+                                    receipent=winner
+                            return aT
+                    outputAssetCids <- foldlA CreateTransferProposals accountsCid winners
+                    retun outputAssetCids
+
+
+
+
+
+    nonconsuming choice MergeSplit :[ContractId Account] --for generating account contracts for winning bets
+            with
+                assetCids : [ContractId Account]
+                outputAmounts:[Decimal]
+                totalAmount :Decimal
+                assetType:AssetType
+            controller house
+            do
+                assertMsg "Account is non fungible" assetType.fungable
+               --archive all input contracts and a list of output contacts in the given denomination
+                forA_ assetCids archive 
+                let
+                    createOutputAssets assetsList amt = do  --defines a function that creates an output asset of the given denomination
+                        assertMsg "The amount of the output asset must be positive" $ amt>0.0
+                        a <- create Account with
+                            assetType
+                            owner=house
+                            amount=amt
+                            observers=[]
+                        return $ a :: assetsList --adding to the list 
+                outputAssetCids <- foldlA createOutputAssets [] outputAmounts
+                if totalAmount > sum outputAmounts then do
+                    a <- create Account with
+                        assetType
+                        owner=house
+                        amount=totalAmount - sum outputAmounts 
+                        observers=[]
+                    return $a ::outputAssetCids
+                else  return outputAssetCids    
+
 
     choice SubmitPayment : ContractId Account.Transfer
       with
@@ -28,7 +70,13 @@ template BetAccounts
        
       controller user
       do
-    
+        let newAmount= amount+userAccount.amount --calculating the total bet amount
+        let newUsers= users  ++ [user]
+        create BetAccounts --creating new BetAccount
+         with
+            users=newUsers
+            amount=newAmount
+            house
         create Account.Transfer with
           asset=userAccount
           receipent=house
