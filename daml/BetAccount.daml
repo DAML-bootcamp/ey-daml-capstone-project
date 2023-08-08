@@ -1,0 +1,34 @@
+module BetAccount where
+
+import Account
+
+template BetAccount
+  with
+    users : [Party]
+    userAccounts : [Account]
+    amount : Int
+    house : Party
+  where
+    signatory house,[users]
+
+{-     choice Payout : [ContractId Account]
+      with
+        amount : Int
+        house:Party
+      controller house
+      do
+      
+        create [Account | acc <- userAccounts] -}
+
+    nonconsuming choice SubmitPayment : ContractId Account.Transfer
+      with
+        userAccount : Account
+        user :Party
+        house:Party
+       
+      controller user
+      do
+        create Account.Transfer with
+          asset=userAccount
+          receipent=house
+
