@@ -1,6 +1,7 @@
 module Setup where
 
 import Scheduling
+import SchedulingData
 import Daml.Script
 
 {--
@@ -229,42 +230,27 @@ setupRacerPositions = script do
 --}
 
 data TestLeaderboards = TestLeaderboards with
-  spaLeaderboard: ContractId Leaderboard
-  monacoLeaderboard: ContractId Leaderboard
-  silverstoneLeaderboard: ContractId Leaderboard
+  spaLeaderboard: Leaderboard
+  monacoLeaderboard: Leaderboard
+  silverstoneLeaderboard: Leaderboard
 
 setupRaceLeaderboards = script do
   (testParties@TestParties{..}) <- setupTestParties
   (testTrackInfos@TestTrackInfos{..}) <- setupTestTrackInfo
   positions <- setupRacerPositions
 
-  spaLeaderboard <- submit houseParty do
-    createCmd Leaderboard with
-      house = houseParty
-      users = usersParty
+  let
+    spaLeaderboard = Leaderboard with
       positions
       isRaceLeaderboard = True
   
-  monacoLeaderboard <- submit houseParty do
-    createCmd Leaderboard with
-      house = houseParty
-      users = usersParty
-      positions
-      isRaceLeaderboard = True
+    monacoLeaderboard = spaLeaderboard
 
-  silverstoneLeaderboard <- submit houseParty do
-    createCmd Leaderboard with
-      house = houseParty
-      users = usersParty
-      positions
-      isRaceLeaderboard = True
-  
-  championshipLeaderboard <- submit houseParty do
-    createCmd Leaderboard with
-      house = houseParty
-      users = usersParty
-      positions
-      isRaceLeaderboard = False
+    silverstoneLeaderboard = spaLeaderboard
+    
+    championshipLeaderboard = Leaderboard with
+        positions
+        isRaceLeaderboard = False
   
   return (testParties, spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard)
 
@@ -289,6 +275,7 @@ setupTestRaces = script do
       users = usersParty
       trackInfo = spa
       leaderboard = spaLeaderboard
+      status = "Upcoming"
   
   monacoRace <- submit houseParty do
     createCmd Race with
@@ -296,6 +283,7 @@ setupTestRaces = script do
       users = usersParty
       trackInfo = monaco
       leaderboard = monacoLeaderboard
+      status = "Upcoming"
   
   silverstoneRace <- submit houseParty do
     createCmd Race with
@@ -303,6 +291,7 @@ setupTestRaces = script do
       users = usersParty
       trackInfo = silverstone
       leaderboard = silverstoneLeaderboard
+      status = "Upcoming"
   
   return (testParties, spaRace, monacoRace, silverstoneRace, championshipLeaderboard)
 
@@ -324,5 +313,6 @@ setupSeason = script do
       races = [spaRace, monacoRace, silverstoneRace]
       racers = [verstappen, perez, hamilton, russell, leclerc, sainz, norris, piastri]
       championshipStandings = championshipLeaderboard
+      status = "Upcoming"
 
   return (testParties, seasonCid)

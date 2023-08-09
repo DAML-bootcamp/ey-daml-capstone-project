@@ -1,0 +1,9 @@
+module Utilities where
+
+import SchedulingData
+
+updateRacerRacePosition: RacerPosition -> [RacerPosition] -> [RacerPosition]
+updateRacerRacePosition racerPosition posList = map (\pos -> if pos.racer == racerPosition.racer then pos{position = racerPosition.position} else pos) posList
+
+updateRacerChampionshipPosition: Racer -> [Racer] -> [Racer]
+updateRacerChampionshipPosition racer racerList = map (\driver -> if driver.name == racer.name then driver{championshipStanding = racer.championshipStanding} else driver) racerList
