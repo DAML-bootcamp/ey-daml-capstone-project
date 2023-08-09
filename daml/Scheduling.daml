@@ -1,67 +1,53 @@
 module Scheduling where
 
-import DA.Set as Set
-import DA.Map as Map
-
-data Team = Team with
-  name: Text
-  carScore: Decimal
-  strategyScore: Decimal
-    deriving (Show, Eq)
-
-
-data Racer = Racer with
-  name: Text
-  speedScore: Decimal
-  team: Team
-  number: Int
-  championshipStanding: Int
-    deriving (Show, Eq)
-
-
-data RacerPosition = RacerPosition with
-  racer: Racer
-  position: Int
-    deriving (Show, Eq)
-
-
-data TrackInfo = TrackInfo with
-  year: Int
-  country: Text
-  trackName: Text
-  lengthKM: Decimal
-    deriving (Show, Eq)
-
-
-class Odds i o where
-  getWinOdds: i -> o 
-
-
-instance Odds Racer Decimal where
-  getWinOdds racer = (racer.speedScore + racer.team.carScore + racer.team.strategyScore)/3.0
-
-template Leaderboard
-  with
-    house: Party
-    users: [Party]
-    positions: [RacerPosition]
-    isRaceLeaderboard: Bool
-
-  where
-    signatory house
-    observer users
+-- import DA.Set as Set
+-- import DA.Map as Map
+import SchedulingData
+import Utilities
 
 template Race
   with
     house: Party
     users: [Party]
     trackInfo: TrackInfo
-    leaderboard: ContractId Leaderboard
+    leaderboard: Leaderboard
+    status: Text
 
   where
     signatory house
     observer users
+
+    ensure leaderboard.isRaceLeaderboard
+
+    choice Race_AddUser: ContractId Race
+      with
+        user: Party
+      controller house
+      do
+        create this with
+          users = users ++ [user]
+  
+    choice UpdateLeaderboardPosition: ContractId Race
+      with
+        racerPos: RacerPosition
+      controller house
+      do
+        create this with
+          leaderboard = leaderboard with 
+            positions = updateRacerRacePosition racerPos leaderboard.positions
     
+    choice UpdateRaceStatus: ContractId Race
+      with
+        newStatus: Text
+      controller house
+      do
+        assertMsg "Race status must be 'In Progress', 'Cancelled' or 'Finished'" 
+          (newStatus == "In Progress" || newStatus == "Finished" || newStatus == "Cancelled")
+        create this with
+          status = newStatus
+
+validateAllRacesFinished: [Race] -> Bool
+validateAllRacesFinished races = all (\race -> race.status == "Finished") races
 
 template Season
   with
@@ -70,9 +56,56 @@ template Season
     year: Int
     races: [ContractId Race]
     racers: [Racer]
-    championshipStandings: ContractId Leaderboard
+    championshipStandings: Leaderboard
+    status: Text
 
   where
     signatory house
     observer users
+  
+    ensure not championshipStandings.isRaceLeaderboard
+
+    choice Season_AddUser: ContractId Season
+      with
+        user: Party
+      controller house
+      do
+        create this with
+          users = users ++ [user]
+
+    choice AddRacer: ContractId Season
+      with
+        newRacer: Racer
+      controller house
+      do
+        assertMsg "Racer already exists" (any (\racer -> racer.name == newRacer.name) racers)
+        
+        create this with
+          racers = racers ++ [newRacer]
+    
+    choice UpdateChampionshipPosition: ContractId Season
+      with
+        racerPos: RacerPosition
+      controller house
+      do
+        create this with
+          championshipStandings = championshipStandings with 
+            positions = updateRacerRacePosition racerPos championshipStandings.positions
+    
+    choice UpdateSeasonStatus: ContractId Season
+      with
+        newStatus: Text
+      controller house
+      do
+        assertMsg "Race status must be 'In Progress', or 'Finished'" 
+          (newStatus == "In Progress" || newStatus == "Finished")
+
+        raceData <- mapA (\raceCid -> fetch raceCid) races
+
+        if (newStatus == "In Progress") then assertMsg "Season cannot be marked 'In Progress' if all races have finished" (not $ validateAllRacesFinished raceData)
+        else assertMsg "All race statuses must be marked 'Finished' to finish the season" (validateAllRacesFinished raceData)
+        
+        create this with
+          status = newStatus
+    
     
