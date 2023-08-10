@@ -19,7 +19,7 @@ template Account
     observer observers
     ensure if assetType.fungable then amount > 0.0 else amount == 1.0
 
-    choice CreateTransferProposal:ContractId TransferProposal 
+    choice CreateTransferProposal: ContractId TransferProposal 
       with
         recipient: Party
       controller owner
@@ -35,7 +35,7 @@ template Account
 template Transfer
   with
     asset: Account
-    recipient:Party
+    recipient: Party
   where 
     signatory (signatory asset) 
     observer recipient 
