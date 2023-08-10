@@ -67,7 +67,7 @@ template BetAccounts
         -- else  
         --return outputAssetCids    
 
-    choice SubmitPayment: ContractId Account.Transfer
+    nonconsuming choice SubmitPayment: ContractId Account.Transfer
       with
         userAccount: Account
         user: Party

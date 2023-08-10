@@ -6,6 +6,12 @@ data Team = Team with
   strategyScore: Decimal
     deriving (Show, Eq)
 
+data NFLTeam = NFLTeam with
+  name: Text
+  avgWinDiffScore:Decimal
+  strategyScore: Decimal
+    deriving (Show, Eq)
+
 data Racer = Racer with
   name: Text
   speedScore: Decimal
@@ -28,6 +34,8 @@ data TrackInfo = TrackInfo with
 
 class Odds i o where
   getWinOdds: i -> o 
+instance Odds NFLTeam Decimal where
+  getWinOdds nflTeam =(nflTeam.avgWinDiffScore*100.0)/2.0
 
 instance Odds Racer Decimal where
   getWinOdds racer = (racer.speedScore + racer.team.carScore + racer.team.strategyScore)/3.0

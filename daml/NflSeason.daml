@@ -1,0 +1,56 @@
+module NflSeason where
+
+import SchedulingData
+
+template Match
+  with
+    house: Party
+    users: [Party]
+    teams: [Team]
+    score: Int
+    matchStatus: Text
+  where
+    signatory house
+    observer users
+
+    choice UpdateScore : ContractId Match
+      with
+        newScore : Int
+      controller house
+      do
+        create this with score = newScore
+
+    choice UpdateMatchStatus : ContractId Match
+      with
+        newMatchStatus : Text
+      controller house
+      do
+        create this with matchStatus = newMatchStatus
+
+template Season
+  with
+    house: Party
+    year: Int
+    matches: [Match]
+    teams: [Team]
+    users:[Party]
+  where
+    signatory house
+    observer users 
+
+    choice AddMatch : ContractId Season
+      with
+        game: Match
+      controller house
+      do
+        create this with matches = matches ++ [game]
+
+
+    choice AddTeam : ContractId Season
+      with
+        team: Team
+      controller house
+      do
+        create this with teams = teams ++ [team]
+
+   
