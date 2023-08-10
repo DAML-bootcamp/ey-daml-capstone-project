@@ -1,31 +1,30 @@
 module MatchBet where
 
 data BetStatus = Open | Placed | Settled
-        deriving (Eq, Show)
+  deriving (Eq, Show)
+
 template MatchBet
   with
-    house : Party
-    user : Party
-    odds : Int
-    betScore : Int
-    betStatus : BetStatus
-    maxPayout : Int
+    house: Party
+    user: Party
+    odds: Int
+    betScore: Int
+    betStatus: BetStatus
+    maxPayout: Int
   where
     signatory house, user
 
-
-
-    choice UpdateBetStatus : ContractId MatchBet
+    choice UpdateBetStatus: ContractId MatchBet
       with
-        newBetStatus : BetStatus
+        newBetStatus: BetStatus
       controller house
       do
        -- assert  "Cannot update to the same status" $ newBetStatus == betStatus
         create this with betStatus = newBetStatus
 
-    choice UpdateBetOdds : ContractId MatchBet
+    choice UpdateBetOdds: ContractId MatchBet
       with
-        newOdds : Int
+        newOdds: Int
       controller house
       do
        -- assert (newOdds /= odds) "Cannot update to the same odds"
