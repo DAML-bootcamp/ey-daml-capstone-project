@@ -14,21 +14,8 @@ template BetAccounts
     amount : Decimal
     house : Party
   where
-    signatory house
-    observer users
-
-    choice AddUserAndBet : ContractId BetAccounts
-      with
-        newUser : Party
-        betAmount : Decimal
-      controller house
-      do
-        assertMsg "Bet amount must be positive" (betAmount > 0.0)
-        let newUsers = users ++ [newUser]
-        create this with
-          users = newUsers
-          amount = amount + betAmount
-
+    signatory users
+    observer house
 
     nonconsuming choice PayOut :[ContractId Account.Transfer] --for generating account contracts for winning bets
             with
@@ -66,14 +53,14 @@ template BetAccounts
                 --return outputAssetCids    
 
 
-    choice SubmitPayment : ContractId Account.Transfer
+    choice AddNewUserAndBet : ContractId Account.Transfer
       with
         userAccount : Account
         user :Party
         house:Party
-       
       controller user
       do
+        assertMsg "Bet amount must be positive" (userAccount.amount > 0.0)
         let newAmount= amount+userAccount.amount --calculating the total bet amount
         let newUsers= users  ++ [user]
         create BetAccounts --creating new BetAccount

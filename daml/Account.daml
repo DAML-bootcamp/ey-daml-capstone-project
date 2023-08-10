@@ -19,19 +19,6 @@ template Account
         observer observers
         ensure if assetType.fungable then amount>0.0 else amount==1.0
 
-        choice CreateTransferProposal:ContractId TransferProposal 
-            with
-                receipent :Party
-            controller  owner
-            do
-                assetCid<-create this with
-                     observers=[receipent]
-                create TransferProposal with 
-                    originator=owner
-                    receipent
-                    assetCid
-                    issuer=assetType.issuer
-
 template Transfer
      with
         asset: Account
@@ -55,33 +42,3 @@ template Transfer
             controller asset.owner
             do
                     create asset 
-template TransferProposal 
-    with
-        originator: Party
-        receipent:Party
-        issuer:Party
-        assetCid: ContractId Account
-    where
-        signatory  originator
-        observer receipent
-
-        choice TransferProposal_Accept:ContractId Account
-            controller  receipent,issuer
-            do
-                asset<-fetch assetCid
-                archive assetCid
-                create asset with 
-                    owner=receipent
-                    observers=[] 
-
-        choice TransferProposal_Reject:()
-            controller  receipent
-            do
-                return()
-        
-        choice TransferProposal_Cancel:()
-            controller  originator
-            do
-                return()
-        
-
