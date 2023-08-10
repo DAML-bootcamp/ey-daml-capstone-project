@@ -2,43 +2,87 @@ module Account where
 
 
 data AssetType = AssetType 
-    with
-        symbol: Text
-        issuer: Party
-        fungable: Bool
-    deriving (Eq,Show)
+  with
+    symbol: Text
+    issuer: Party
+    fungable: Bool
+  deriving (Eq,Show)
 
 template Account
-    with 
-        assetType: AssetType
-        amount: Decimal 
-        owner: Party
-        observers:[Party] 
-    where
-        signatory owner,assetType.issuer
-        observer observers
-        ensure if assetType.fungable then amount>0.0 else amount==1.0
+  with 
+    assetType: AssetType
+    amount: Decimal 
+    owner: Party
+    observers: [Party] 
+  where
+    signatory owner, assetType.issuer
+    observer observers
+    ensure if assetType.fungable then amount > 0.0 else amount == 1.0
+
+    choice CreateTransferProposal: ContractId TransferProposal 
+      with
+        recipient: Party
+      controller owner
+      do
+        assetCid <- create this with
+           observers = [recipient]
+        create TransferProposal with 
+          originator = owner
+          recipient
+          assetCid
+          issuer = assetType.issuer
 
 template Transfer
-     with
-        asset: Account
-        receipent:Party
-    where 
-        signatory (signatory asset) 
-        observer receipent 
+  with
+    asset: Account
+    recipient: Party
+  where 
+    signatory (signatory asset) 
+    observer recipient 
 
-        choice Transfer_Accept: ContractId Account
-            controller receipent
-            do
-                        create asset with 
-                            owner =receipent 
-        
-        choice Transfer_Reject: ContractId Account
-            controller receipent
-            do
-                   create asset 
+    choice Transfer_Accept: ContractId Account
+      controller recipient
+      do
+        create asset with 
+          owner = recipient 
+    
+    choice Transfer_Reject: ContractId Account
+      controller recipient
+      do
+        create asset 
 
-        choice Transfer_Cancel: ContractId Account
-            controller asset.owner
-            do
-                    create asset 
+    choice Transfer_Cancel: ContractId Account
+      controller asset.owner
+      do
+        create asset 
+
+template TransferProposal 
+  with
+    originator: Party
+    recipient: Party
+    issuer: Party
+    assetCid: ContractId Account
+  where
+    signatory originator
+    observer recipient
+
+    choice TransferProposal_Accept: ContractId Account
+      controller recipient, issuer
+      do
+        asset <- fetch assetCid
+        archive assetCid
+        create asset with 
+          owner = recipient
+          observers = [] 
+
+    choice TransferProposal_Reject: ()
+      controller recipient
+      do
+        return()
+    
+    choice TransferProposal_Cancel: ()
+      controller originator
+      do
+        return()
+    
+
