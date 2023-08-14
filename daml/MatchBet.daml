@@ -1,18 +1,27 @@
 module MatchBet where
 
+import BetAccount
+
 data BetStatus = Open | Placed | Settled
   deriving (Eq, Show)
+data UserBet = UserBet with
+  user: Party
+  betScore:Int
+  betAmount:Decimal
+  betType:Text
+    deriving (Show, Eq)
 
 template MatchBet
   with
     house: Party
-    user: Party
-    odds: Int
+    userBets: [UserBet]
+    odds: Decimal
     betScore: Int
     betStatus: BetStatus
     maxPayout: Int
+
   where
-    signatory house, user
+    signatory house
 
     choice UpdateBetStatus: ContractId MatchBet
       with
@@ -22,10 +31,31 @@ template MatchBet
        -- assert  "Cannot update to the same status" $ newBetStatus == betStatus
         create this with betStatus = newBetStatus
 
-    choice UpdateBetOdds: ContractId MatchBet
+    choice UpdateBetOdds: ContractId MatchBet --updates with new odds of winning
       with
-        newOdds: Int
+        newOdds: Decimal
       controller house
       do
        -- assert (newOdds /= odds) "Cannot update to the same odds"
         create this with odds = newOdds
+    
+    choice CalculateBetWinnings : [Winner] -- calculates winners and amount to be paid out
+      controller house
+      do
+        assertMsg "Cannot calculate winnings for an ongoing bet" $betStatus == Settled
+        let calculateWinningAmount userBet = 
+              if userBet.betScore >= betScore 
+                then userBet.betAmount + (userBet.betAmount * odds)
+                else 0.0
+        let winners = [ Winner with user = userBet.user, amount = calculateWinningAmount userBet
+                      | userBet <- userBets, calculateWinningAmount userBet > 0.0 ]
+
+        return winners
+
+
+            
+        
+
+       
+
+

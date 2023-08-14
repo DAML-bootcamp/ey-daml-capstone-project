@@ -56,7 +56,7 @@ template BetAccounts
               asset = newAccount
               recipient = winner.user
             return $ accountTransfer :: assetsList --adding to the list 
-        foldlA createOutputAssets [] winners --need to UTXO back to house
+        foldlA createOutputAssets[]  winners --need to UTXO back to house
         -- if totalAmount > sum winners.outputAmounts then do
         --     a <- create Account with
         --     assetType

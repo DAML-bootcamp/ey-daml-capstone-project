@@ -25,6 +25,8 @@ template Match
         newMatchStatus : Text
       controller house
       do
+        assertMsg "Match status must be 'In Progress', 'Cancelled' or 'Finished'" 
+          (newMatchStatus == "In Progress" || newMatchStatus == "Finished" || newMatchStatus == "Cancelled")
         create this with matchStatus = newMatchStatus
 
 template Season
