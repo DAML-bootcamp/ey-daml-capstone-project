@@ -2,6 +2,7 @@ module Setup where
 
 import Scheduling
 import SchedulingData
+import NflSeason
 import Daml.Script
 
 {--
@@ -58,6 +59,40 @@ setupTeams = script do
 
   return TestTeams with
     ..
+
+--setting up nfl teams
+
+data TestNFLTeams = TestNFLTeams with
+  cityChiefs: NFLTeam
+  cowBoys: NFLTeam
+  eagles: NFLTeam
+  sf29ers: NFLTeam
+
+setupNFLTeams = script do
+  let
+    cityChiefs = NFLTeam with
+      name = "KANSAS CITY CHIEFS"
+      avgWinDiffScore = 10.00
+      strategyScore = 10.00
+
+    cowBoys = NFLTeam with
+      name = "DALLAS COWBOYS"
+      avgWinDiffScore = 7.50
+      strategyScore = 6.50
+
+    eagles = NFLTeam with
+      name = "PHILADELPHIA EAGLES"
+      avgWinDiffScore = 8.00
+      strategyScore = 9.00
+
+    sf29ers = NFLTeam with
+      name = "SAN FRANCISCO 49ERS"
+      avgWinDiffScore = 6.00
+      strategyScore = 6.00
+
+  return TestNFLTeams with
+    ..
+
 {--
 
   Setup track information for each racetrack
@@ -294,6 +329,43 @@ setupTestRaces = script do
       status = "Upcoming"
   
   return (testParties, spaRace, monacoRace, silverstoneRace, championshipLeaderboard)
+--setup matches for a nfl season
+
+setupTestMatches = script do
+
+  (testNFLTeams@TestNFLTeams{..}) <- setupNFLTeams
+  (testParties@TestParties{..}) <- setupTestParties
+
+  match1 <- submit houseParty do
+    createCmd Match with
+      house = houseParty
+      users = usersParty
+      teams= [cityChiefs,cowBoys]
+      score=0
+      matchStatus="Scheduled"
+      winningTeam="NA"
+  
+  match2 <- submit houseParty do
+    createCmd Match with
+      house = houseParty
+      users = usersParty
+      teams= [eagles,sf29ers]
+      score=0
+      matchStatus="Scheduled"
+      winningTeam="NA"
+  
+  match3 <- submit houseParty do
+    createCmd Match with
+      house = houseParty
+      users = usersParty
+      teams= [cowBoys,eagles]
+      score=0
+      matchStatus="Scheduled"
+      winningTeam="NA"
+  
+  return (testParties,match1, match2,match3,cityChiefs,cowBoys,eagles,sf29ers)
+
+
 
 {--
 
@@ -306,7 +378,7 @@ setupSeason = script do
   (testRacers@TestRacers{..}) <- setupTestRacers
 
   seasonCid <- submit houseParty do
-    createCmd Season with
+    createCmd Scheduling.Season with
       house = houseParty
       users = usersParty
       year = 2023
@@ -316,3 +388,17 @@ setupSeason = script do
       status = "Upcoming"
 
   return (testParties, seasonCid)
+
+setupNFLSeason = script do
+  (testParties@TestParties{..}, match1, match2,match3,cityChiefs,eagles,sf29ers,cowBoys) <- setupTestMatches
+  
+
+  nflSeasonCid <- submit houseParty do
+    createCmd NflSeason.Season with
+      house = houseParty
+      users = usersParty
+      year = 2023
+      matches = [match1, match2, match3]
+      teams=[cityChiefs,eagles,sf29ers,cowBoys]
+
+  return (testParties, nflSeasonCid)

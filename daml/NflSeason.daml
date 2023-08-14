@@ -35,16 +35,17 @@ template Season --represents a season
   with
     house: Party
     year: Int
-    matches: [Match]
+    matches: [ContractId Match]
     teams: [NFLTeam]
     users:[Party]
+  
   where
     signatory house
     observer users 
 
     choice AddMatch : ContractId Season
       with
-        game: Match
+        game: ContractId Match 
       controller house
       do
         create this with matches = matches ++ [game]
