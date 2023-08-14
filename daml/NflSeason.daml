@@ -6,7 +6,7 @@ template Match --represents a single match of a season
   with
     house: Party
     users: [Party]
-    teams: [Team]
+    teams: [NFLTeam]
     score: Int
     matchStatus: Text
     winningTeam: Text
@@ -36,7 +36,7 @@ template Season --represents a season
     house: Party
     year: Int
     matches: [Match]
-    teams: [Team]
+    teams: [NFLTeam]
     users:[Party]
   where
     signatory house
@@ -52,7 +52,7 @@ template Season --represents a season
 
     choice AddTeam : ContractId Season
       with
-        team: Team
+        team: NFLTeam
       controller house
       do
         create this with teams = teams ++ [team]
