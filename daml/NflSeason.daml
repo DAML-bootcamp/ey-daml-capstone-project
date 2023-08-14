@@ -1,0 +1,60 @@
+module NflSeason where
+
+import SchedulingData
+
+template Match --represents a single match of a season
+  with
+    house: Party
+    users: [Party]
+    teams: [Team]
+    score: Int
+    matchStatus: Text
+    winningTeam: Text
+  where
+    signatory house
+    observer users
+
+    choice UpdateScore : ContractId Match
+      with
+        newScore : Int
+      controller house
+      do
+        create this with score = newScore
+
+    choice UpdateMatchStatus : ContractId Match
+      with
+        newMatchStatus : Text
+        winningTeam : Text
+      controller house
+      do
+        assertMsg "Match status must be 'In Progress', 'Cancelled' or 'Finished'" 
+          (newMatchStatus == "In Progress" || newMatchStatus == "Finished" || newMatchStatus == "Cancelled")
+        create this with matchStatus = newMatchStatus,winningTeam
+
+template Season --represents a season
+  with
+    house: Party
+    year: Int
+    matches: [Match]
+    teams: [Team]
+    users:[Party]
+  where
+    signatory house
+    observer users 
+
+    choice AddMatch : ContractId Season
+      with
+        game: Match
+      controller house
+      do
+        create this with matches = matches ++ [game]
+
+
+    choice AddTeam : ContractId Season
+      with
+        team: Team
+      controller house
+      do
+        create this with teams = teams ++ [team]
+
+   

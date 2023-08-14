@@ -1,30 +1,29 @@
-module MatchBet where
+module F1Bet where
 
 import BetAccount
-import NflSeason 
+
 data BetStatus = Open | Placed | Settled
   deriving (Eq, Show)
 data UserBet = UserBet with --represents a user bet
   user: Party
-  betScore:Int
   betAmount:Decimal
-  betTeam:Text
-  betType:Text
+  betRacer:Text
     deriving (Show, Eq)
 
-template MatchBet
+
+template F1Bet
   with
     house: Party
     userBets: [UserBet] --represents each user and the betscore for that match
     odds: Decimal
-    betScore: Int --represents final score of the match
+    raceStatus: Text --represents final score of the match
     betStatus: BetStatus
     maxPayout: Int
 
   where
     signatory house
 
-    choice UpdateBetStatus: ContractId MatchBet
+    choice UpdateBetStatus: ContractId F1Bet
       with
         newBetStatus: BetStatus
       controller house
@@ -32,26 +31,25 @@ template MatchBet
         assertMsg  "Cannot update to the same status" $ newBetStatus == betStatus
         create this with betStatus = newBetStatus
 
-    choice UpdateBetOdds: ContractId MatchBet --updates with new odds of winning
+    choice UpdateBetOdds: ContractId F1Bet --updates with new odds of winning
       with
         newOdds: Decimal
       controller house
       do
        -- assert (newOdds /= odds) "Cannot update to the same odds"
         create this with odds = newOdds
-    
-    choice CalculateBetWinnings : [Winner] -- calculates winners and amount to be paid out,Call BetAccount chioce Payout after this
+
+    choice CalculateBetWinnings : [Winner] -- calculates winners and amount to be paid out
       with
-        match:Match --represents the current match result
+        raceWinner:Text --represents the current race result
       controller house
       do
         assertMsg "Cannot calculate winnings for an ongoing bet" $betStatus == Settled
-         --check if the winning team is the user bet team and score is overs or unders based on bet type
         let calculateWinningAmount userBet = 
-              if (userBet.betScore >= betScore && userBet.betTeam==match.winningTeam && userBet.betType=="Overs")||(userBet.betScore < betScore && userBet.betTeam==match.winningTeam && userBet.betType=="Unders")
+              if (userBet.betRacer == raceWinner)
                 then userBet.betAmount + (userBet.betAmount * odds)
                 else 0.0
-        --filter our winners and calculate winning amount
+        
         let winners = [ Winner with user = userBet.user, amount = calculateWinningAmount userBet
                       | userBet <- userBets, calculateWinningAmount userBet > 0.0 ]
 

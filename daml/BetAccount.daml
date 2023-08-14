@@ -56,7 +56,7 @@ template BetAccounts
               asset = newAccount
               recipient = winner.user
             return $ accountTransfer :: assetsList --adding to the list 
-        foldlA createOutputAssets [] winners --need to UTXO back to house
+        foldlA createOutputAssets[]  winners --need to UTXO back to house
         -- if totalAmount > sum winners.outputAmounts then do
         --     a <- create Account with
         --     assetType
@@ -67,25 +67,33 @@ template BetAccounts
         -- else  
         --return outputAssetCids    
 
-    choice SubmitPayment: ContractId Account.Transfer
+    nonconsuming choice SubmitPayment: ContractId Account.Transfer
       with
         userAccount: Account
         user: Party
-        house: Party
-      
+        betAmount:Decimal      
       controller user
       do
-        let newAmount= amount + userAccount.amount --calculating the total bet amount
-        let newUsers= users ++ [user]
+        assertMsg "insufficent Balance" $(userAccount.amount>betAmount)
+         --creating new BetAccount
+        create Account.Transfer with
+          asset = userAccount
+          recipient = house
 
-        --creating new BetAccount
+    choice AddNewBet:ContractId BetAccounts --house accept the bet and
+      with
+        user:Party
+        transferCid:ContractId Transfer
+      controller house
+      do
+        betTransfer<-fetch transferCid
+        
+        exercise transferCid Transfer_Accept 
+        let newAmount= amount + betTransfer.asset.amount --calculating the total bet amount
+        let newUsers= users ++ [user]
         create BetAccounts with
           users = newUsers
           amount = newAmount
           house
-
-        create Account.Transfer with
-          asset = userAccount
-          recipient = house
     
 
