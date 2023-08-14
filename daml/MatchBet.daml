@@ -1,22 +1,23 @@
 module MatchBet where
 
 import BetAccount
-
+import NflSeason 
 data BetStatus = Open | Placed | Settled
   deriving (Eq, Show)
-data UserBet = UserBet with
+data UserBet = UserBet with --represents a user bet
   user: Party
   betScore:Int
   betAmount:Decimal
+  betTeam:Text
   betType:Text
     deriving (Show, Eq)
 
 template MatchBet
   with
     house: Party
-    userBets: [UserBet]
+    userBets: [UserBet] --represents each user and the betscore for that match
     odds: Decimal
-    betScore: Int
+    betScore: Int --represents final score of the match
     betStatus: BetStatus
     maxPayout: Int
 
@@ -28,7 +29,7 @@ template MatchBet
         newBetStatus: BetStatus
       controller house
       do
-       -- assert  "Cannot update to the same status" $ newBetStatus == betStatus
+        assertMsg  "Cannot update to the same status" $ newBetStatus == betStatus
         create this with betStatus = newBetStatus
 
     choice UpdateBetOdds: ContractId MatchBet --updates with new odds of winning
@@ -39,12 +40,14 @@ template MatchBet
        -- assert (newOdds /= odds) "Cannot update to the same odds"
         create this with odds = newOdds
     
-    choice CalculateBetWinnings : [Winner] -- calculates winners and amount to be paid out
+    choice CalculateBetWinnings : [Winner] -- calculates winners and amount to be paid out,Call BetAccount chioce Payout after this
+      with
+        match:Match --represents the current match result
       controller house
       do
         assertMsg "Cannot calculate winnings for an ongoing bet" $betStatus == Settled
         let calculateWinningAmount userBet = 
-              if userBet.betScore >= betScore 
+              if userBet.betScore >= betScore && userBet.betTeam==match.winningTeam --check if the winning team is the user bet team and score is greater that the givng overs score
                 then userBet.betAmount + (userBet.betAmount * odds)
                 else 0.0
         let winners = [ Winner with user = userBet.user, amount = calculateWinningAmount userBet

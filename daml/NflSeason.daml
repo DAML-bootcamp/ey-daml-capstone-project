@@ -9,6 +9,7 @@ template Match
     teams: [Team]
     score: Int
     matchStatus: Text
+    winningTeam: Text
   where
     signatory house
     observer users
@@ -23,11 +24,12 @@ template Match
     choice UpdateMatchStatus : ContractId Match
       with
         newMatchStatus : Text
+        winningTeam : Text
       controller house
       do
         assertMsg "Match status must be 'In Progress', 'Cancelled' or 'Finished'" 
           (newMatchStatus == "In Progress" || newMatchStatus == "Finished" || newMatchStatus == "Cancelled")
-        create this with matchStatus = newMatchStatus
+        create this with matchStatus = newMatchStatus,winningTeam
 
 template Season
   with
