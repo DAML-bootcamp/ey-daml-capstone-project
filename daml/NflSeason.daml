@@ -2,7 +2,7 @@ module NflSeason where
 
 import SchedulingData
 
-template Match
+template Match --represents a single match of a season
   with
     house: Party
     users: [Party]
@@ -31,7 +31,7 @@ template Match
           (newMatchStatus == "In Progress" || newMatchStatus == "Finished" || newMatchStatus == "Cancelled")
         create this with matchStatus = newMatchStatus,winningTeam
 
-template Season
+template Season --represents a season
   with
     house: Party
     year: Int

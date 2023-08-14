@@ -46,10 +46,12 @@ template MatchBet
       controller house
       do
         assertMsg "Cannot calculate winnings for an ongoing bet" $betStatus == Settled
+         --check if the winning team is the user bet team and score is overs or unders based on bet type
         let calculateWinningAmount userBet = 
-              if userBet.betScore >= betScore && userBet.betTeam==match.winningTeam --check if the winning team is the user bet team and score is greater that the givng overs score
+              if (userBet.betScore >= betScore && userBet.betTeam==match.winningTeam && userBet.betType=="Overs")||(userBet.betScore < betScore && userBet.betTeam==match.winningTeam && userBet.betType=="Unders")
                 then userBet.betAmount + (userBet.betAmount * odds)
                 else 0.0
+        --filter our winners and calculate winning amount
         let winners = [ Winner with user = userBet.user, amount = calculateWinningAmount userBet
                       | userBet <- userBets, calculateWinningAmount userBet > 0.0 ]
 
