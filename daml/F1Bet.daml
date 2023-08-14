@@ -1,7 +1,7 @@
 module F1Bet where
 
 import BetAccount
-import SchedulingData 
+
 data BetStatus = Open | Placed | Settled
   deriving (Eq, Show)
 data UserBet = UserBet with --represents a user bet
@@ -9,8 +9,7 @@ data UserBet = UserBet with --represents a user bet
   betAmount:Decimal
   betRacer:Text
     deriving (Show, Eq)
-isPositionOne: RacerPosition -> Bool
-isPositionOne racerPos = racerPos.position == 1
+
 
 template F1Bet
   with
