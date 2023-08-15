@@ -38,7 +38,7 @@ template F1Bet
     choice F1Bet_UpdateBetOdds: ContractId F1Bet --updates with new odds of winning
       with
         newOdds: Decimal
-      controller user
+      controller issuer
       do
        -- assert (newOdds /= odds) "Cannot update to the same odds"
         create this with odds = newOdds
@@ -77,6 +77,28 @@ template UserF1Account
     key (betType, user): (F1BetType, Party) --key has to have atleast one party
     maintainer key._1.issuer --1-1 relationship b/w asset and account
 
+    choice F1_AddBalance: ContractId UserF1Account
+      with
+        additionalBalance: Decimal
+      
+      controller betType.issuer
+      do
+        assertMsg "Additional balance must be positive" $ additionalBalance > 0.0
+
+        create this with
+          balance = balance + additionalBalance
+    
+    choice F1_AddBet: ContractId UserF1Account
+      with
+        f1BetCid: ContractId F1Bet
+        newBalance: Decimal
+      
+      controller betType.issuer
+      do
+        create this with
+          bets = bets ++ [f1BetCid]
+          balance = newBalance
+
 
 template F1BetProposal
   with
@@ -91,9 +113,9 @@ template F1BetProposal
       do
         (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (bet.betType, user)
 
-        assertMsg "Insufficient balance" (userF1Account.balance >= bet.amount)
+        assertMsg "Insufficient balance" $ userF1Account.balance >= bet.amount
 
-        f1betCid <- create F1Bet with
+        f1BetCid <- create F1Bet with
           issuer = bet.issuer
           user = bet.user
           betType = bet.betType
@@ -101,10 +123,10 @@ template F1BetProposal
           status = bet.status
           odds = bet.odds
           amount = bet.amount
-
-        create userF1Account with
-          bets = userF1Account.bets ++ [f1betCid]
-          balance = userF1Account.balance - bet.amount
+        
+        exercise userF1AccountCid F1_AddBet with 
+          f1BetCid = f1BetCid
+          newBalance = userF1Account.balance - bet.amount
     
     choice Transfer_Reject: ContractId UserF1Account
       controller user

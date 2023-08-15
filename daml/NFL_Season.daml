@@ -1,4 +1,4 @@
-module NflSeason where
+module NFL_Season where
 
 import SchedulingData
 
@@ -10,7 +10,7 @@ template Match --represents a single match of a season
     score: Int
     matchStatus: Text
     winningTeam: Text
-    
+
   where
     signatory house
     observer users
