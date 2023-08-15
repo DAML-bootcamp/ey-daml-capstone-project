@@ -44,13 +44,14 @@ template F1Bet
         raceWinner: Text --represents the current race result
       controller house
       do
-        assertMsg "Cannot calculate winnings for an ongoing bet" $betStatus == Settled
+        assertMsg "Cannot calculate winnings for an ongoing bet" $ betStatus == Settled
         let calculateWinningAmount userBet = 
               if (userBet.betRacer == raceWinner)
                 then userBet.betAmount + (userBet.betAmount * odds)
                 else 0.0
         
-        let winners = [ Winner with user = userBet.user, amount = calculateWinningAmount userBet
+        let
+          winners = [ Winner with user = userBet.user, amount = calculateWinningAmount userBet
                       | userBet <- userBets, calculateWinningAmount userBet > 0.0 ]
 
         return winners
