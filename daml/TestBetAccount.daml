@@ -1,5 +1,4 @@
 module TestBetAccount where
-
 import BetAccount
 import Account
 import Daml.Script
@@ -35,7 +34,7 @@ setupTestAccounts = script do
     userAAccountCid <- submit userParty do
         createCmd Account with
             assetType = usdAsset
-            amount = 100.00
+            accountAmount = 100.00
             owner = userParty
             observers = []
     let
@@ -44,21 +43,21 @@ setupTestAccounts = script do
 
 -- start of test
 testSubmitPayment = script do
-    -- fix this line of code
-    (tp@TestParties{..}, ta@TestAccounts{..}) <- setUpAccounts
-    users <- [userParty]
-    amount <- 0.0
-    house <- houseParty
-    userACid <- submitMulti [houseParty, userParty] [] do
+    -- boilerplate from docs
+    (tp@TestParties{..}, ta@TestAccounts{..}) <- setupTestAccounts
+    -- declare amt, parties from code above
+    userACid <- submit houseParty do
+        amount <- 2.0
         createCmd BetAccounts with
-            users
+            users = [userParty]
             amount
-            house
-    submit users._1 do
+            house = houseParty
+    Some userAccountPayload <- queryContractId userParty userAAccountCid
+    submit userParty do
         exerciseCmd userACid SubmitPayment
             with
                 -- need to pull userAccount from ta
-                userAccount = ta
-                user = users._1
+                userAccount = userAccountPayload
+                user = userParty
                 betAmount = amount
 
