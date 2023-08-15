@@ -1,0 +1,23 @@
+module SetupParties where
+
+import Daml.Script
+
+{--
+
+  Setup parties
+
+--}
+
+data TestParties = TestParties with
+  houseParty: Party
+  usersParty: [Party]
+
+setupTestParties = script do
+  houseParty <- allocatePartyWithHint "House" (PartyIdHint "House")
+  userA <- allocatePartyWithHint "UserA" (PartyIdHint "UserA")
+  userB <- allocatePartyWithHint "UserB" (PartyIdHint "UserB")
+  userC <- allocatePartyWithHint "UserC" (PartyIdHint "UserC")
+  let
+    usersParty = [userA, userB, userC]
+  return TestParties with
+    ..

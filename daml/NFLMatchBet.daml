@@ -1,7 +1,7 @@
-module MatchBet where
+module NFLMatchBet where
 
 import BetAccount
-import NflSeason 
+import NFL_Season 
 
 data BetStatus = Open | Placed | Settled
   deriving (Eq, Show)
