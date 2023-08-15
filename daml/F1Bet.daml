@@ -1,20 +1,21 @@
 module F1Bet where
 
 import BetAccount
+import SchedulingData
 
 data BetStatus = Open | Placed | Settled
   deriving (Eq, Show)
 
-data UserBet = UserBet with --represents a user bet
+data RacerBet = RacerBet with --represents a user bet
   user: Party
   betAmount: Decimal
-  betRacer: Text
+  betRacer: Racer
     deriving (Show, Eq)
 
 template F1Bet
   with
     house: Party
-    userBets: [UserBet] --represents each user and the betscore for that match
+    racerBets: [RacerBet] --represents each user and the betscore for that match
     odds: Decimal
     raceStatus: Text --represents final score of the match
     betStatus: BetStatus
@@ -41,18 +42,18 @@ template F1Bet
 
     choice CalculateBetWinnings: [Winner] -- calculates winners and amount to be paid out
       with
-        raceWinner: Text --represents the current race result
+        raceWinner: Racer --represents the current race result
       controller house
       do
         assertMsg "Cannot calculate winnings for an ongoing bet" $ betStatus == Settled
-        let calculateWinningAmount userBet = 
-              if (userBet.betRacer == raceWinner)
-                then userBet.betAmount + (userBet.betAmount * odds)
+        let calculateWinningAmount racerBet = 
+              if (racerBet.betRacer == raceWinner)
+                then racerBet.betAmount + (racerBet.betAmount * odds)
                 else 0.0
         
         let
-          winners = [ Winner with user = userBet.user, amount = calculateWinningAmount userBet
-                      | userBet <- userBets, calculateWinningAmount userBet > 0.0 ]
+          winners = [ Winner with user = racerBet.user, amount = calculateWinningAmount racerBet
+                      | racerBet <- racerBets, calculateWinningAmount racerBet > 0.0 ]
 
         return winners
 

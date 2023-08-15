@@ -1,6 +1,6 @@
-module Setup where
+module F1TestSetup where
 
-import Scheduling
+import F1Scheduling
 import SchedulingData
 import NflSeason
 import Daml.Script
@@ -378,7 +378,7 @@ setupSeason = script do
   (testRacers@TestRacers{..}) <- setupTestRacers
 
   seasonCid <- submit houseParty do
-    createCmd Scheduling.Season with
+    createCmd F1Scheduling.Season with
       house = houseParty
       users = usersParty
       year = 2023

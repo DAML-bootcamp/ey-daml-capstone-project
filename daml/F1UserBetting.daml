@@ -1,0 +1,119 @@
+module F1UserBetting where
+
+import SchedulingData
+
+data BetStatus = Open | Placed | Settled
+  deriving (Eq, Show)
+
+
+data F1BetType = F1BetType 
+  with
+    issuer: Party
+  deriving (Eq, Show)
+
+
+template F1Bet
+  with
+    issuer: Party
+    user: Party
+    betType: F1BetType
+    racer: Racer
+    status: BetStatus
+    odds: Decimal
+    amount: Decimal
+  
+  where
+    signatory issuer
+    observer user
+
+    choice F1Bet_UpdateBetStatus: ContractId F1Bet
+      with
+        newBetStatus: BetStatus
+
+      controller issuer
+      do
+        assertMsg  "Cannot update to the same status" $ newBetStatus == status
+        create this with status = newBetStatus
+    
+    choice F1Bet_UpdateBetOdds: ContractId F1Bet --updates with new odds of winning
+      with
+        newOdds: Decimal
+      controller user
+      do
+       -- assert (newOdds /= odds) "Cannot update to the same odds"
+        create this with odds = newOdds
+    
+    choice F1Bet_CloseBet: ContractId F1Bet
+      with
+        raceWinner: Racer
+      controller user
+      do
+        assertMsg  "Bet is already closed" $ status == Settled
+
+        (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (betType, user)
+
+        let payout = 0
+
+        if (raceWinner == racer) then do
+          create userF1Account with
+            balance = userF1Account.balance + amount
+        else
+          create userF1Account
+
+        create this with
+            status = Settled
+
+
+template UserF1Account
+  with 
+    betType: F1BetType
+    user: Party
+    bets: [ContractId F1Bet]
+    balance: Decimal
+
+  where
+    signatory user, betType.issuer
+
+    key (betType, user): (F1BetType, Party) --key has to have atleast one party
+    maintainer key._1.issuer --1-1 relationship b/w asset and account
+
+
+template F1BetProposal
+  with
+    bet: F1Bet
+    user: Party
+  where 
+    signatory bet.betType.issuer
+    observer user 
+
+    choice Transfer_Accept: ContractId UserF1Account
+      controller user
+      do
+        (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (bet.betType, user)
+
+        assertMsg "Insufficient balance" (userF1Account.balance >= bet.amount)
+
+        f1betCid <- create F1Bet with
+          issuer = bet.issuer
+          user = bet.user
+          betType = bet.betType
+          racer = bet.racer
+          status = bet.status
+          odds = bet.odds
+          amount = bet.amount
+
+        create userF1Account with
+          bets = userF1Account.bets ++ [f1betCid]
+          balance = userF1Account.balance - bet.amount
+    
+    choice Transfer_Reject: ContractId UserF1Account
+      controller user
+      do
+        (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (bet.betType, user)
+        create userF1Account
+
+    choice Transfer_Cancel: ContractId UserF1Account
+      controller bet.betType.issuer
+      do
+        (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (bet.betType, user)
+        create userF1Account

@@ -1,4 +1,4 @@
-module Scheduling where
+module F1Scheduling where
 
 -- import DA.Set as Set
 -- import DA.Map as Map

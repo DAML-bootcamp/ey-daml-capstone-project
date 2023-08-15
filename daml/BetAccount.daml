@@ -9,7 +9,6 @@ data Winner = Winner with
     amount: Decimal
       deriving (Eq, Show)
 
-
 template BetAccounts
   with
     users: [Party]
@@ -62,7 +61,7 @@ template BetAccounts
               asset = newAccount
               recipient = winner.user
             return $ accountTransfer :: assetsList --adding to the list 
-            
+
         foldlA createOutputAssets[]  winners --need to UTXO back to house
         -- if totalAmount > sum winners.outputAmounts then do
         --     a <- create Account with

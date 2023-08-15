@@ -1,4 +1,5 @@
 module TestBetAccount where
+
 import BetAccount
 import Account
 import Daml.Script

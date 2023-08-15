@@ -6,7 +6,7 @@ data AssetType = AssetType
     symbol: Text
     issuer: Party
     fungable: Bool
-  deriving (Eq,Show)
+  deriving (Eq, Show)
 
 template Account
   with 
@@ -19,7 +19,7 @@ template Account
     observer observers
     ensure if assetType.fungable then amount > 0.0 else amount == 1.0
 
-    key (assetType,owner) :(AssetType,Party) --key has to have atleast one party
+    key (assetType, owner): (AssetType, Party) --key has to have atleast one party
     maintainer key._1.issuer --1-1 relationship b/w asset and account
     
 
