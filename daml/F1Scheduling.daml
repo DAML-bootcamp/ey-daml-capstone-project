@@ -4,6 +4,19 @@ module F1Scheduling where
 -- import DA.Map as Map
 import SchedulingData
 import Utilities
+import F1UserBetting
+import DA.Action 
+import DA.Foldable
+
+-- closeAllBets: [Party] -> Party -> Text -> Int
+-- closeAllBets users house newStatus = do
+--   if (newStatus == "Finished") then do 
+--     let betType = F1BetType with issuer = house
+--     mapA (\a -> a+1) [1,2,3]
+--   else do
+--     let betType = F1BetType with issuer = house
+--     mapA (\a -> a+2) [1,2,3]
+--   debug $ ""
 
 template Race
   with
@@ -43,11 +56,14 @@ template Race
       do
         assertMsg "Race status must be 'In Progress', 'Cancelled' or 'Finished'" 
           (newStatus == "In Progress" || newStatus == "Finished" || newStatus == "Cancelled")
+        
+        --something <- closeAllBets users house newStatus
+
         create this with
           status = newStatus
 
 validateAllRacesFinished: [Race] -> Bool
-validateAllRacesFinished races = all (\race -> race.status == "Finished") races
+validateAllRacesFinished races = Prelude.all (\race -> race.status == "Finished") races
 
 template Season
   with
@@ -78,7 +94,7 @@ template Season
         newRacer: Racer
       controller house
       do
-        assertMsg "Racer already exists" (any (\racer -> racer.name == newRacer.name) racers)
+        assertMsg "Racer already exists" (Prelude.any (\racer -> racer.name == newRacer.name) racers)
         
         create this with
           racers = racers ++ [newRacer]

@@ -48,7 +48,7 @@ template F1Bet
         raceWinner: Racer
       controller user
       do
-        assertMsg  "Bet is already closed" $ status == Settled
+        assertMsg  "Bet is already closed" $ status == Settled 
 
         (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (betType, user)
 
