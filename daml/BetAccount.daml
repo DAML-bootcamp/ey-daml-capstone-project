@@ -71,26 +71,26 @@ template BetAccounts
       with
         userAccount: Account
         user: Party
-        betAmount:Decimal      
+        betAmount: Decimal      
       controller user
       do
-        assertMsg "insufficent Balance" $(userAccount.amount>betAmount)
+        assertMsg "insufficent Balance" $(userAccount.amount > betAmount)
          --creating new BetAccount
         create Account.Transfer with
           asset = userAccount
           recipient = house
 
-    choice AddNewBet:ContractId BetAccounts --house accept the bet and
+    choice AddNewBet: ContractId BetAccounts --house accept the bet and
       with
-        user:Party
-        transferCid:ContractId Transfer
+        user: Party
+        transferCid: ContractId Transfer
       controller house
       do
-        betTransfer<-fetch transferCid
+        betTransfer <- fetch transferCid
         
         exercise transferCid Transfer_Accept 
-        let newAmount= amount + betTransfer.asset.amount --calculating the total bet amount
-        let newUsers= users ++ [user]
+        let newAmount = amount + betTransfer.asset.amount --calculating the total bet amount
+        let newUsers = users ++ [user]
         create BetAccounts with
           users = newUsers
           amount = newAmount

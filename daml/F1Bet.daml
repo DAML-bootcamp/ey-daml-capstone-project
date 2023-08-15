@@ -4,12 +4,12 @@ import BetAccount
 
 data BetStatus = Open | Placed | Settled
   deriving (Eq, Show)
+
 data UserBet = UserBet with --represents a user bet
   user: Party
-  betAmount:Decimal
-  betRacer:Text
+  betAmount: Decimal
+  betRacer: Text
     deriving (Show, Eq)
-
 
 template F1Bet
   with
@@ -39,9 +39,9 @@ template F1Bet
        -- assert (newOdds /= odds) "Cannot update to the same odds"
         create this with odds = newOdds
 
-    choice CalculateBetWinnings : [Winner] -- calculates winners and amount to be paid out
+    choice CalculateBetWinnings: [Winner] -- calculates winners and amount to be paid out
       with
-        raceWinner:Text --represents the current race result
+        raceWinner: Text --represents the current race result
       controller house
       do
         assertMsg "Cannot calculate winnings for an ongoing bet" $betStatus == Settled

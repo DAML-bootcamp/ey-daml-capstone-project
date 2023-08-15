@@ -2,14 +2,16 @@ module MatchBet where
 
 import BetAccount
 import NflSeason 
+
 data BetStatus = Open | Placed | Settled
   deriving (Eq, Show)
+  
 data UserBet = UserBet with --represents a user bet
   user: Party
-  betScore:Int
-  betAmount:Decimal
-  betTeam:Text
-  betType:Text
+  betScore: Int
+  betAmount: Decimal
+  betTeam: Text
+  betType: Text
     deriving (Show, Eq)
 
 template MatchBet
@@ -40,15 +42,15 @@ template MatchBet
        -- assert (newOdds /= odds) "Cannot update to the same odds"
         create this with odds = newOdds
     
-    choice CalculateBetWinnings : [Winner] -- calculates winners and amount to be paid out,Call BetAccount chioce Payout after this
+    choice CalculateBetWinnings: [Winner] -- calculates winners and amount to be paid out,Call BetAccount chioce Payout after this
       with
-        match:Match --represents the current match result
+        match: Match --represents the current match result
       controller house
       do
-        assertMsg "Cannot calculate winnings for an ongoing bet" $betStatus == Settled
+        assertMsg "Cannot calculate winnings for an ongoing bet" $ betStatus == Settled
          --check if the winning team is the user bet team and score is overs or unders based on bet type
         let calculateWinningAmount userBet = 
-              if (userBet.betScore >= betScore && userBet.betTeam==match.winningTeam && userBet.betType=="Overs")||(userBet.betScore < betScore && userBet.betTeam==match.winningTeam && userBet.betType=="Unders")
+              if (userBet.betScore >= betScore && userBet.betTeam == match.winningTeam && userBet.betType == "Overs") || (userBet.betScore < betScore && userBet.betTeam == match.winningTeam && userBet.betType == "Unders")
                 then userBet.betAmount + (userBet.betAmount * odds)
                 else 0.0
         --filter our winners and calculate winning amount

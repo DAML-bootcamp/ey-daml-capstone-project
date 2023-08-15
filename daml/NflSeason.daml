@@ -14,17 +14,17 @@ template Match --represents a single match of a season
     signatory house
     observer users
 
-    choice UpdateScore : ContractId Match
+    choice UpdateScore: ContractId Match
       with
-        newScore : Int
+        newScore: Int
       controller house
       do
         create this with score = newScore
 
-    choice UpdateMatchStatus : ContractId Match
+    choice UpdateMatchStatus: ContractId Match
       with
-        newMatchStatus : Text
-        winningTeam : Text
+        newMatchStatus: Text
+        winningTeam: Text
       controller house
       do
         assertMsg "Match status must be 'In Progress', 'Cancelled' or 'Finished'" 
@@ -43,15 +43,14 @@ template Season --represents a season
     signatory house
     observer users 
 
-    choice AddMatch : ContractId Season
+    choice AddMatch: ContractId Season
       with
         game: ContractId Match 
       controller house
       do
         create this with matches = matches ++ [game]
 
-
-    choice AddTeam : ContractId Season
+    choice AddTeam: ContractId Season
       with
         team: NFLTeam
       controller house
