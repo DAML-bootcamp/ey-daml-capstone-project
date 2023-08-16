@@ -10,6 +10,7 @@ template Match --represents a single match of a season
     score: Int
     matchStatus: Text
     winningTeam: Text
+    matchNo:Int
 
   where
     signatory house
