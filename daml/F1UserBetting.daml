@@ -131,7 +131,7 @@ template F1BetProposal
     signatory bet.betType.issuer
     observer user 
 
-    choice Transfer_Accept: ContractId UserF1Account
+    choice F1BetProposal_Accept: ContractId UserF1Account
       controller user
       do
         (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (bet.betType, user)
@@ -152,14 +152,11 @@ template F1BetProposal
           f1BetCid = f1BetCid
           newBalance = userF1Account.balance - bet.amount
     
-    choice Transfer_Reject: ContractId UserF1Account
+    choice F1BetProposal_Reject: ()
       controller user
       do
-        (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (bet.betType, user)
-        create userF1Account
-
-    choice Transfer_Cancel: ContractId UserF1Account
+        return ()
+    choice F1BetProposal_Cancel: ()
       controller bet.betType.issuer
       do
-        (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (bet.betType, user)
-        create userF1Account
+        return ()
