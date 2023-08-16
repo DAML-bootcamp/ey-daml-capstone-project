@@ -31,12 +31,12 @@ setupTestAccounts = script do
             symbol = "USD"
             issuer = bankParty
             fungable = True
-    userAAccountCid <- submit userParty do
+    userAAccountCid <- submitMulti [userParty,bankParty] [] do
         createCmd Account with
             assetType = usdAsset
-            amount = 100.00
+            amount = 1000.00
             owner = userParty
-            observers = []
+            observers = [bankParty]
     let
         ta = TestAccounts with ..
     return (tp, ta)
@@ -46,11 +46,11 @@ testSubmitPayment = script do
     -- boilerplate from docs
     (tp@TestParties{..}, ta@TestAccounts{..}) <- setupTestAccounts
     -- declare amt, parties from code above
+
     userACid <- submit houseParty do
-        amount <- 2.0
         createCmd BetAccounts with
             users = [userParty]
-            amount
+            amount = 1.0
             house = houseParty
     Some userAccountPayload <- queryContractId userParty userAAccountCid
     submit userParty do
@@ -59,5 +59,5 @@ testSubmitPayment = script do
                 -- need to pull userAccount from ta
                 userAccount = userAccountPayload
                 user = userParty
-                betAmount = amount
+                betAmount = userAccountPayload.amount
 
