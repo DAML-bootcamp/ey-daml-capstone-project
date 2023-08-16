@@ -2,7 +2,7 @@ module F1UserBetting where
 
 import SchedulingData
 
-data BetStatus = Open | Placed | Settled
+data F1BetStatus = Open | Placed | Settled
   deriving (Eq, Show)
 
 
@@ -18,17 +18,18 @@ template F1Bet
     user: Party
     betType: F1BetType
     racer: Racer
-    status: BetStatus
+    trackInfo: TrackInfo
+    status: F1BetStatus
     odds: Decimal
     amount: Decimal
-  
+
   where
     signatory issuer
     observer user
 
     choice F1Bet_UpdateBetStatus: ContractId F1Bet
       with
-        newBetStatus: BetStatus
+        newBetStatus: F1BetStatus
 
       controller issuer
       do
@@ -48,7 +49,29 @@ template F1Bet
         raceWinner: Racer
       controller user
       do
+        assertMsg  "Bet is already closed" $ status /= Settled 
+        assertMsg  "Only placed bets may be closed" $ status /= Open 
+
+        (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (betType, user)
+
+        let payout = 0
+
+        if (raceWinner == racer) then do
+          create userF1Account with
+            balance = userF1Account.balance + amount
+        else
+          create userF1Account
+
+        create this with
+            status = Settled
+    
+    choice F1Bet_CloseBet_System: ContractId F1Bet
+      with
+        raceWinner: Racer
+      controller issuer
+      do
         assertMsg  "Bet is already closed" $ status == Settled 
+        assertMsg  "Only placed bets may be closed" $ status == Open 
 
         (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (betType, user)
 
@@ -120,6 +143,7 @@ template F1BetProposal
           user = bet.user
           betType = bet.betType
           racer = bet.racer
+          trackInfo = bet.trackInfo
           status = bet.status
           odds = bet.odds
           amount = bet.amount

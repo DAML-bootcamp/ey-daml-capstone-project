@@ -1,22 +1,10 @@
 module F1Scheduling where
 
--- import DA.Set as Set
--- import DA.Map as Map
 import SchedulingData
 import Utilities
 import F1UserBetting
-import DA.Action 
 import DA.Foldable
 
--- closeAllBets: [Party] -> Party -> Text -> Int
--- closeAllBets users house newStatus = do
---   if (newStatus == "Finished") then do 
---     let betType = F1BetType with issuer = house
---     mapA (\a -> a+1) [1,2,3]
---   else do
---     let betType = F1BetType with issuer = house
---     mapA (\a -> a+2) [1,2,3]
---   debug $ ""
 
 template Race
   with
@@ -56,8 +44,25 @@ template Race
       do
         assertMsg "Race status must be 'In Progress', 'Cancelled' or 'Finished'" 
           (newStatus == "In Progress" || newStatus == "Finished" || newStatus == "Cancelled")
+
+        let 
+          betType = F1BetType with issuer = house
+          raceLeader = getRaceLeader leaderboard.positions
         
-        --something <- closeAllBets users house newStatus
+        -- Find out all outstanding bets for this race and close them out
+        forA_ users (\user -> 
+          if (newStatus == "Finished") then do
+            (userAccountCid, userAccount) <- fetchByKey @UserF1Account (betType, user)
+            forA_ userAccount.bets (\betCid -> 
+              do
+                bet <- fetch betCid
+                if (bet.trackInfo == trackInfo && bet.status /= Settled) then do 
+                  exercise betCid F1Bet_CloseBet_System with raceWinner = raceLeader.racer
+                else do
+                  return betCid
+              )
+          else do
+            pure ())
 
         create this with
           status = newStatus
