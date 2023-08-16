@@ -4,6 +4,8 @@ import SchedulingData
 import Utilities
 import F1UserBetting
 import DA.Foldable
+import DA.Optional (fromSome)
+import DA.List.Total (head)
 
 
 template Race
@@ -30,12 +32,42 @@ template Race
   
     choice UpdateLeaderboardPosition: ContractId Race
       with
-        racerPos: RacerPosition
+        racerPositions: [RacerPosition]
       controller house
       do
+      {-
+        Update positions on the leaderboard
+      -}
+        let 
+          betType = F1BetType with issuer = house
+          newRacerPositions = map (\position -> 
+            if (Prelude.any (\racerPos -> racerPos.racer == position.racer) racerPositions) then do
+              let racerPosition = fromSome $ head $ filter (\racerPos -> racerPos.racer == position.racer) racerPositions
+              position{position = racerPosition.position}
+            else do
+              position ) leaderboard.positions
+        {-
+          For each bet placed by each user:
+          - Check if the bet was for a racer whose position changed
+          - If so, calculate new bet odds and update
+        -}
+        forA_ users (\user -> do
+          (userAccountCid, userAccount) <- fetchByKey @UserF1Account (betType, user)
+          forA_ userAccount.bets (\betCid -> 
+            do
+              bet <- fetch betCid
+              forA_ racerPositions (\position -> do
+                  if (Prelude.any (\racerPos -> racerPos.racer == position.racer) racerPositions) then do 
+                    exercise betCid F1Bet_UpdateBetOdds with 
+                      newOdds = getRacerPositionOdds position.racer position.position
+                  else do
+                    return betCid
+                )
+            ))
+
         create this with
           leaderboard = leaderboard with 
-            positions = updateRacerRacePosition racerPos leaderboard.positions
+            positions = newRacerPositions
     
     choice UpdateRaceStatus: ContractId Race
       with
@@ -128,5 +160,3 @@ template Season
         
         create this with
           status = newStatus
-    
-    

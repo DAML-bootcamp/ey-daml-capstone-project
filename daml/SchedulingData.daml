@@ -45,3 +45,5 @@ data Leaderboard = Leaderboard with
   positions: [RacerPosition]
   isRaceLeaderboard: Bool
     deriving (Show, Eq)  
+
+getRacerPositionOdds racer position = getWinOdds racer + 10.0/intToDecimal(position)
