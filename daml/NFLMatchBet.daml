@@ -70,7 +70,7 @@ template NFLMatchBet
          
         create this with users=newUsers,userBets=newuserBets
     
-    choice CalculateBetWinnings: [Winner] -- calculates winners and amount to be paid out,Call BetAccount chioce Payout after this
+    choice CalculateBetWinnings: [ContractId UserNFLAccount] -- calculates winners and amount to be paid out,Call BetAccount chioce Payout after this
       with
         match: Match --represents the current match result
       controller issuer
@@ -81,11 +81,21 @@ template NFLMatchBet
               if (userBet.betScore >= finalMatchScore && userBet.oversunders == "Overs") || (userBet.betScore < finalMatchScore && userBet.oversunders == "Unders")
                 then userBet.betAmount + (userBet.betAmount * odds)
                 else 0.0
+
         --filter our winners and calculate winning amount
         let winners = [ Winner with user = userBet.user, amount = calculateWinningAmount userBet
                       | userBet <- userBets, calculateWinningAmount userBet > 0.0 ]
 
-        return winners
+        let createAccountForWinner winner = do
+            userNFLAccountCid <- create UserNFLAccount with
+             betType = betType
+             user = winner.user
+             balance = winner.amount
+             bets = []
+            return userNFLAccountCid
+    
+        userNFLAccountCids <- mapA createAccountForWinner winners
+        return userNFLAccountCids
 
 
 template UserNFLAccount
