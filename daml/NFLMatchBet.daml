@@ -87,16 +87,14 @@ template NFLMatchBet
                       | userBet <- userBets, calculateWinningAmount userBet > 0.0 ]
 
         let createAccountForWinner winner = do
-            userNFLAccountCid <- create UserNFLAccount with
+            create UserNFLAccount with
              betType = betType
              user = winner.user
              balance = winner.amount
              bets = []
-            return userNFLAccountCid
+            --return userNFLAccountCid
     
-        userNFLAccountCids <- mapA createAccountForWinner winners
-        return userNFLAccountCids
-
+        mapA createAccountForWinner winners
 
 template UserNFLAccount
   with 
