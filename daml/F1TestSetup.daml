@@ -219,7 +219,7 @@ data TestLeaderboards = TestLeaderboards with
 
 setupRaceLeaderboards = script do
   (testParties@TestParties{..}) <- setupTestParties
-  (testTrackInfos@TestTrackInfos{..}) <- setupTestTrackInfo
+  -- (testTrackInfos@TestTrackInfos{..}) <- setupTestTrackInfo
   positions <- setupRacerPositions
 
   let

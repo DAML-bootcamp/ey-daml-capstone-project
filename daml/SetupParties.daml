@@ -13,7 +13,7 @@ data TestParties = TestParties with
   usersParty: [Party]
 
 setupTestParties = script do
-  houseParty <- allocatePartyWithHint "House" (PartyIdHint "House")
+  houseParty <- allocatePartyWithHint "HouseParty" (PartyIdHint "HouseParty")
   userA <- allocatePartyWithHint "UserA" (PartyIdHint "UserA")
   userB <- allocatePartyWithHint "UserB" (PartyIdHint "UserB")
   userC <- allocatePartyWithHint "UserC" (PartyIdHint "UserC")
