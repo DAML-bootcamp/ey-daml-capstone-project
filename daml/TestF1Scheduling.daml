@@ -1,0 +1,85 @@
+module TestF1Scheduling where
+
+import Daml.Script
+import F1TestSetup
+import F1UserBetting
+import F1Scheduling
+
+data TestParties = TestParties
+    with
+        house: Party
+        user1: Party
+        betType: F1BetType
+        f1user1ccountCid: ContractId UserF1Account
+
+setupParties : Script TestParties
+setupParties = script do
+    house <- allocateParty "House"
+    user1 <- allocateParty "User1"
+    let 
+        betType = F1BetType with
+            issuer = house
+    f1user1ccountCid <- submitMulti [user1, betType.issuer] [] do
+        createCmd UserF1Account with
+            betType
+            user = user1
+            bets = []
+            balance = 100.0
+    let
+        tp = TestParties with ..
+    return tp
+
+-- 1. Race Scheduling: Create Race
+testCreateRace = script do
+    tp@TestParties{..} <- setupParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+
+    submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = leaderboards._3
+            status = "In Progress"
+
+    return ()
+
+
+-- 2. Race Scheduling: Create Race and Add User
+testRaceAddUser = script do
+    tp@TestParties{..} <- setupParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+
+    raceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = leaderboards._3
+            status = "In Progress"
+
+    submit house do
+        exerciseCmd raceCid Race_AddUser with
+            user = user1
+
+    return ()
+
+-- 3. Race Scheduling: Update Leaderboard Position
+
+-- 4. Race Scheduling: Update Race Status
+
+-- 5. Race Scheduling: Create Season
+
+-- 6. Race Scheduling: Season Add User
+
+-- 7. Race Scheduling: Season Add Racer
+
+-- 8. Race Scheduling: Season Update Championship Position
+
+-- 9. Race Scheduling: Update Season Status
+
+
+
+
