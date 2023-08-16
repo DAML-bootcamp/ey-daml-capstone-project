@@ -34,7 +34,7 @@ setupTestAccounts = script do
     userAAccountCid <- submit userParty do
         createCmd Account with
             assetType = usdAsset
-            accountAmount = 100.00
+            amount = 100.00
             owner = userParty
             observers = []
     let
