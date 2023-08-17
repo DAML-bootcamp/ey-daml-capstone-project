@@ -15,7 +15,9 @@ template Match --represents a single match of a season
   where
     signatory house
     observer users
-
+    
+    key (house, matchNo): (Party,Int) 
+    maintainer key._1 
     choice UpdateScore: ContractId Match
       with
         newScore: Int
@@ -44,6 +46,9 @@ template Season --represents a season
   where
     signatory house
     observer users 
+
+    key (house, year): (Party,Int) 
+    maintainer key._1 
 
     choice AddMatch: ContractId Season
       with
