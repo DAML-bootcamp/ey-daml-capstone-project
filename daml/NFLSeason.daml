@@ -1,4 +1,4 @@
-module NFL_Season where
+module NFLSeason where
 
 import SchedulingData
 
@@ -15,6 +15,14 @@ template Match --represents a single match of a season
   where
     signatory house
     observer users
+
+    choice MatchAddUser: ContractId Match
+      with
+        user: Party
+      controller house
+      do
+        create this with
+          users = users ++ [user]
 
     choice UpdateScore: ContractId Match
       with
@@ -45,6 +53,14 @@ template Season --represents a season
     signatory house
     observer users 
 
+    choice SeasonAddUser: ContractId Season
+      with
+        user: Party
+      controller house
+      do
+        create this with
+          users = users ++ [user]
+          
     choice AddMatch: ContractId Season
       with
         game: ContractId Match 

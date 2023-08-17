@@ -1,6 +1,6 @@
 module NFLTestSetup where
 
-import NFL_Season
+import NFLSeason
 import SchedulingData
 import SetupParties
 import Daml.Script 
@@ -82,7 +82,7 @@ setupNFLSeason = script do
   
 
   nflSeasonCid <- submit houseParty do
-    createCmd NFL_Season.Season with
+    createCmd NFLSeason.Season with
       house = houseParty
       users = usersParty
       year = 2023
