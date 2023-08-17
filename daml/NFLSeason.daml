@@ -1,4 +1,4 @@
-module NFL_Season where
+module NFLSeason where
 
 import SchedulingData
 
@@ -7,7 +7,7 @@ template Match --represents a single match of a season
     house: Party
     users: [Party]
     teams: [NFLTeam]
-    score: Int
+    totalScore: Int
     matchStatus: Text
     winningTeam: Text
     matchNo:Int
@@ -15,7 +15,7 @@ template Match --represents a single match of a season
   where
     signatory house
     observer users
-    
+
     key (house, matchNo): (Party,Int) 
     maintainer key._1 
     choice UpdateScore: ContractId Match
@@ -23,7 +23,7 @@ template Match --represents a single match of a season
         newScore: Int
       controller house
       do
-        create this with score = newScore
+        create this with totalScore = newScore
 
     choice UpdateMatchStatus: ContractId Match
       with
