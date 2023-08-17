@@ -1,7 +1,6 @@
 module NFLUserBetting where
 
-import SchedulingData
-import NFL_Season
+
 
 data NFLBetStatus = Open | Placed | Settled
   deriving (Eq, Show)
@@ -18,7 +17,9 @@ template NFLBet
     issuer: Party
     user: Party
     betType: NFLBetType
-    match: Match
+    matchNo: Int
+    betScore:Int
+    overUnders:Text --represents overs or unders bet type
     status: NFLBetStatus
     odds: Decimal
     amount: Decimal
@@ -46,7 +47,7 @@ template NFLBet
     
     choice NFLBet_CloseBet: ContractId NFLBet
       with
-        match: Match
+        finalScore: Int
       controller user
       do
         assertMsg  "Bet is already closed" $ status /= Settled 
@@ -56,9 +57,9 @@ template NFLBet
 
         let payout = 0
 
-        if (raceWinner == racer) then do
+        if (betScore>= finalScore && overUnders=="Overs")||(betScore< finalScore && overUnders=="Unders") then do
           create userNFLAccount with
-            balance = userNFLAccount.balance + amount
+            balance = userNFLAccount.balance + (amount*odds)
         else
           create userNFLAccount
 
@@ -67,7 +68,7 @@ template NFLBet
     
     choice NFLBet_CloseBet_System: ContractId NFLBet
       with
-        raceWinner: Racer
+        finalScore: Int
       controller issuer
       do
         assertMsg  "Bet is already closed" $ status == Settled 
@@ -77,9 +78,9 @@ template NFLBet
 
         let payout = 0
 
-        if (raceWinner == racer) then do
+        if (betScore>= finalScore && overUnders=="Overs")||(betScore< finalScore && overUnders=="Unders") then do
           create userNFLAccount with
-            balance = userNFLAccount.balance + amount
+            balance = userNFLAccount.balance + (amount*odds)
         else
           create userNFLAccount
 
@@ -145,6 +146,9 @@ template NFLBetProposal
           status = bet.status
           odds = bet.odds
           amount = bet.amount
+          matchNo=bet.matchNo
+          betScore=bet.betScore
+          overUnders=bet.overUnders
         
         exercise userNFLAccountCid NFL_AddBet with 
           nflBetCid = nflBetCid
