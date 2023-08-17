@@ -31,7 +31,6 @@ template NFLMatchBet
     match:Match
     userBets: [UserBet] --represents each user and the betscore for that match
     odds: Decimal
-    finalMatchScore: Int --represents final score of the match
     betStatus: BetStatus
     maxPayout: Int
     betType:NFLBetType
@@ -72,7 +71,7 @@ template NFLMatchBet
     
     choice CalculateBetWinnings: [ContractId UserNFLAccount] -- calculates winners and amount to be paid out,Call BetAccount chioce Payout after this
       with
-        match: Match --represents the current match result
+        finalMatchScore: Int --represents the final total  match score
       controller issuer
       do
         assertMsg "Cannot calculate winnings for an ongoing bet" $ betStatus == Settled
