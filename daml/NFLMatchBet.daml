@@ -112,7 +112,7 @@ template UserNFLAccount
    -- key (betType, user): (NFLBetType, Party) --key has to have atleast one party
    -- maintainer key._1.issuer --1-1 relationship b/w asset and account
 
-    nonconsuming choice NFL_InviteNewUser: ContractId UserNFLAccountProposal
+    choice NFL_InviteNewUser: ContractId UserNFLAccountProposal
       with
         recipient: Party
       

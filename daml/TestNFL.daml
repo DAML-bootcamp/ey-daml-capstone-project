@@ -9,6 +9,7 @@ data TestParties = TestParties
     with
         house: Party
         userA: Party
+        userB: Party
         betType: NFLBetType
         nflUserAccountCid: ContractId UserNFLAccount
 
@@ -16,6 +17,7 @@ setupParties : Script TestParties
 setupParties = script do
     house <- allocateParty "House"
     userA <- allocateParty "UserA"
+    userB <- allocateParty "UserB"
     let 
         betType = NFLBetType with
             issuer = house
@@ -86,7 +88,7 @@ testCancelNFLBetProposal = script do
 
 
 
--- 3. Happy Path: Reject Bet
+-- 2. Happy Path: Reject Bet
 testRejectNFLBetProposal = script do
     tp@TestParties{..} <- setupParties
    
@@ -131,7 +133,7 @@ testRejectNFLBetProposal = script do
     
     return ()
 
--- 4. Happy Path: Create Bet, Accept Proposal
+-- 3. Happy Path: Create Bet, Accept Proposal
 testAcceptNFLBetProposal = script do
     tp@TestParties{..} <- setupParties
    
@@ -175,8 +177,8 @@ testAcceptNFLBetProposal = script do
         exerciseCmd nflBetProposalCid Transfer_Accept
     
     return ()
--- 5. Happy Path : Create bet,accept proposal close bet
-testClosetNFLBet = script do
+-- 4. Happy Path : Create bet,accept proposal close bet
+testCloseNFLBet = script do
     tp@TestParties{..} <- setupParties
    
     (testNFLTeams@TestNFLTeams{..}) <- setupNFLTeams
@@ -230,7 +232,91 @@ testClosetNFLBet = script do
             finalMatchScore=20 
 
     return ()
+    
+-- 5. Happy Path : Create bet,accept proposal multiple  close bet
+testCloseMultipleNFLBet = script do
+    tp@TestParties{..} <- setupParties
+   
+    (testNFLTeams@TestNFLTeams{..}) <- setupNFLTeams
 
+    let 
+        match = MatchType with
+            matchNo = 1
+
+    
+    -- Create Bet
+    betCid <- submit house do
+        createCmd NFLMatchBet with
+            issuer = house
+            match 
+            betType
+            userBets = []
+            betStatus = Open
+            odds = 0.3
+            users=[]
+    --Create a bet payload for user
+    let 
+        userBet=UserBet with
+            user=userA
+            betScore=22
+            betAmount=100.0
+            oversunders="Overs"
+            matchNo=1
+
+
+    -- Create Bet Proposal
+    nflBetProposalCid <- submit userA do
+        createCmd NFLBetProposal with
+            bet = userBet
+            user = userA
+            betType
+            userNFLAccountCid=nflUserAccountCid
+    
+    -- Accept Bet Proposal
+    newBetContractID<-submit house do
+        exerciseCmd nflBetProposalCid Transfer_Accept
+-- UserB places a bet
+    nflHouseAccountCid <- submit house do
+        createCmd UserNFLAccount with
+            betType
+            user = house
+            bets = []
+            balance = 400.0
+    nflUserAccountProposalCid <- submit house do
+        exerciseCmd nflHouseAccountCid NFL_InviteNewUser with
+            recipient = userB
+    
+    nflUserBAccountCid <- submit userB do
+        exerciseCmd nflUserAccountProposalCid UserNFLAccountProposal_Accept
+    
+    let 
+        userBBet=UserBet with
+            user=userB
+            betScore=19
+            betAmount=100.0
+            oversunders="Overs"
+            matchNo=1
+    nflBetBProposalCid <- submit userB do
+        createCmd NFLBetProposal with
+            bet = userBBet
+            user = userB
+            betType
+            userNFLAccountCid=nflUserBAccountCid
+    newBetContractID<-submit house do
+        exerciseCmd nflBetBProposalCid Transfer_Accept
+    --Change Bet status to settled
+
+    newBetContractID<-submit house do 
+        exerciseCmd newBetContractID UpdateBetStatus with
+            newBetStatus=Settled
+
+    --Payout the winnings
+
+    winnigsProposalCids<-submit  house do 
+        exerciseCmd newBetContractID CalculateBetWinnings with
+            finalMatchScore=20 
+    
+    return ()
 --6. Unhappy Path : Close an ongoing bet
 testCloseOngoingBet=script do
     tp@TestParties{..} <- setupParties
