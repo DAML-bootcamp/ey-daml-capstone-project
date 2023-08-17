@@ -91,6 +91,7 @@ template F1BetProposal
   with
     bet: F1Bet
     user: Party
+
   where 
     signatory bet.betType.issuer
     observer user 
@@ -139,7 +140,7 @@ template UserF1Account
     key (betType, user): (F1BetType, Party) --key has to have atleast one party
     maintainer key._1.issuer --1-1 relationship b/w asset and account
 
-    choice F1_InviteNewUser: ContractId UserF1AccountProposal
+    nonconsuming choice F1_InviteNewUser: ContractId UserF1AccountProposal
       with
         recipient: Party
       
