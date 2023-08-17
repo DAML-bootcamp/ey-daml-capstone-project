@@ -27,7 +27,7 @@ data UserBet = UserBet with --represents a user bet
 data MatchType = MatchType with --represents a user bet
   matchNo:Int
     deriving (Show, Eq)
-    
+
 template NFLMatchBet
   with
     issuer: Party
@@ -49,7 +49,7 @@ template NFLMatchBet
         newBetStatus: NFLBetStatus
       controller issuer
       do
-        assertMsg  "Cannot update to the same status" $ newBetStatus == betStatus
+        assertMsg  "Cannot update to the same status" $ newBetStatus /= betStatus
         create this with betStatus = newBetStatus
 
     choice UpdateBetOdds: ContractId NFLMatchBet --updates with new odds of winning
@@ -71,7 +71,7 @@ template NFLMatchBet
          
         create this with users=newUsers,userBets=newuserBets
     
-    choice CalculateBetWinnings: [ContractId UserNFLAccount] -- calculates winners and amount to be paid out,Call BetAccount chioce Payout after this
+    choice CalculateBetWinnings: [ContractId UserNFLAccountProposal] -- calculates winners and amount to be paid out,Call BetAccount chioce Payout after this
       with
         finalMatchScore: Int --represents the final total  match score
       controller issuer
@@ -88,13 +88,14 @@ template NFLMatchBet
                       | userBet <- userBets, calculateWinningAmount userBet > 0.0 ]
 
         let createAccountForWinner winner = do
-            create UserNFLAccount with
+            nflHouseAccountCid<-create UserNFLAccount with
              betType = betType
-             user = winner.user
+             user = issuer
              balance = winner.amount
              bets = []
             --return userNFLAccountCid
-    
+            exercise nflHouseAccountCid NFL_InviteNewUser with
+                recipient = winner.user
         mapA createAccountForWinner winners
 
 
@@ -108,10 +109,10 @@ template UserNFLAccount
   where
     signatory user, betType.issuer
 
-    key (betType, user): (NFLBetType, Party) --key has to have atleast one party
-    maintainer key._1.issuer --1-1 relationship b/w asset and account
+   -- key (betType, user): (NFLBetType, Party) --key has to have atleast one party
+   -- maintainer key._1.issuer --1-1 relationship b/w asset and account
 
-    choice NFL_InviteNewUser: ContractId UserNFLAccountProposal
+    nonconsuming choice NFL_InviteNewUser: ContractId UserNFLAccountProposal
       with
         recipient: Party
       
@@ -149,6 +150,7 @@ template NFLBetProposal
     bet: UserBet
     user: Party
     betType:NFLBetType
+    userNFLAccountCid:ContractId UserNFLAccount
   where 
     signatory user
     observer  betType.issuer
@@ -156,9 +158,9 @@ template NFLBetProposal
     choice Transfer_Accept: ContractId NFLMatchBet
       controller betType.issuer
       do
-        (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (betType, user)
+      --  (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (betType, user)
         (nflMatchBetCid, nflMatchBet) <- fetchByKey @NFLMatchBet (betType, bet.matchNo)
-        
+        userNFLAccount<- fetch  userNFLAccountCid
         assertMsg "Insufficient balance" $ userNFLAccount.balance >= bet.betAmount
         exercise userNFLAccountCid NFL_AddBet with 
           nflBetCid = nflMatchBetCid
