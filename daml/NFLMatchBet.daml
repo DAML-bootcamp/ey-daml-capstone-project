@@ -1,7 +1,5 @@
 module NFLMatchBet where
 
---import BetAccount
-import NFLSeason 
 
 data NFLBetStatus = Open | Placed | Settled
   deriving (Eq, Show)
@@ -37,7 +35,6 @@ template NFLMatchBet
     betStatus: NFLBetStatus
     betType:NFLBetType
     users:[Party]
-
   where
     signatory issuer
     observer users
@@ -52,14 +49,6 @@ template NFLMatchBet
         assertMsg  "Cannot update to the same status" $ newBetStatus /= betStatus
         create this with betStatus = newBetStatus
 
-    choice UpdateBetOdds: ContractId NFLMatchBet --updates with new odds of winning
-      with
-        newOdds: Decimal
-      controller issuer
-      do
-       -- assert (newOdds /= odds) "Cannot update to the same odds"
-        create this with odds = newOdds
-    
     choice AddNewUserBet: ContractId NFLMatchBet --updates with new odds of winning
       with
         bet:UserBet

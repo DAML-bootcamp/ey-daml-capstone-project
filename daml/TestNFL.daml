@@ -3,6 +3,7 @@ module TestNFL where
 import Daml.Script
 import NFLTestSetup
 import NFLMatchBet
+import DA.List (head)
 
 
 data TestParties = TestParties
@@ -227,10 +228,12 @@ testCloseNFLBet = script do
 
     --Payout the winnings
 
-    submit  house do 
+    newAccountCids<-submit  house do 
         exerciseCmd newBetContractID CalculateBetWinnings with
             finalMatchScore=20 
-
+    let newWinnerAccontCid = head newAccountCids
+    nflUserAccountCid <- submit userA do
+        exerciseCmd newWinnerAccontCid UserNFLAccountProposal_Accept
     return ()
     
 -- 5. Happy Path : Create bet,accept proposal multiple  close bet
