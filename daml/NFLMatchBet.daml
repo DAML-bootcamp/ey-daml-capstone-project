@@ -1,7 +1,7 @@
 module NFLMatchBet where
 
 --import BetAccount
-import NFL_Season 
+import NFLSeason 
 
 data BetStatus = Open | Placed | Settled
   deriving (Eq, Show)
