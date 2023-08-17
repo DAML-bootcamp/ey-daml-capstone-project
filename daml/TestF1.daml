@@ -18,12 +18,21 @@ setupParties = script do
     let 
         betType = F1BetType with
             issuer = house
-    f1UserAccountCid <- submitMulti [userA, betType.issuer] [] do
+    
+    f1HouseAccountCid <- submit house do
         createCmd UserF1Account with
             betType
-            user = userA
+            user = house
             bets = []
             balance = 100.0
+    
+    f1UserAccountProposalCid <- submit house do
+        exerciseCmd f1HouseAccountCid F1_InviteNewUser with
+            recipient = userA
+    
+    f1UserAccountCid <- submit userA do
+        exerciseCmd f1UserAccountProposalCid UserF1AccountProposal_Accept
+
     let
         tp = TestParties with ..
     return tp

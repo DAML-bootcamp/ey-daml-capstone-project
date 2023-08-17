@@ -95,6 +95,7 @@ template NFLMatchBet
     
         mapA createAccountForWinner winners
 
+
 template UserNFLAccount
   with 
     betType: NFLBetType
@@ -107,6 +108,16 @@ template UserNFLAccount
 
     key (betType, user): (NFLBetType, Party) --key has to have atleast one party
     maintainer key._1.issuer --1-1 relationship b/w asset and account
+
+    choice NFL_InviteNewUser: ContractId UserNFLAccountProposal
+      with
+        recipient: Party
+      
+      controller betType.issuer
+      do
+        create UserNFLAccountProposal with
+          account = this
+          recipient 
 
     choice NFL_AddBalance: ContractId UserNFLAccount
       with
@@ -129,6 +140,7 @@ template UserNFLAccount
         create this with
           bets = bets ++ [nflBetCid]
           balance = newBalance
+
 
 template NFLBetProposal
   with
@@ -166,10 +178,27 @@ template NFLBetProposal
         (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (betType, user)
         create userNFLAccount
 
+template UserNFLAccountProposal
+  with
+    account: UserNFLAccount
+    recipient: Party
+  
+  where
+    signatory account.betType.issuer
+    observer recipient
 
-            
-        
+    choice UserNFLAccountProposal_Accept: ContractId UserNFLAccount 
+      controller recipient
+      do
+        create account with
+          user = recipient
 
-       
+    choice UserNFLAccountProposal_Reject: ()
+      controller recipient
+      do
+        return ()
 
-
+    choice UserNFLAccountProposal_Cancel: ()
+      controller account.betType.issuer
+      do
+        return ()
