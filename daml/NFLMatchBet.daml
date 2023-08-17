@@ -9,6 +9,7 @@ data NFLBetStatus = Open | Placed | Settled
 data NFLBetType = NFLBetType 
   with
     issuer: Party
+    betType:Text
   deriving (Eq, Show)
 data Winner = Winner with
     user: Party
@@ -20,19 +21,20 @@ data UserBet = UserBet with --represents a user bet
   user: Party
   betScore: Int
   betAmount: Decimal
-  betTeam: Text
   oversunders: Text
   matchNo:Int
     deriving (Show, Eq)
-
+data MatchType = MatchType with --represents a user bet
+  matchNo:Int
+    deriving (Show, Eq)
+    
 template NFLMatchBet
   with
     issuer: Party
-    match:Match
+    match:MatchType
     userBets: [UserBet] --represents each user and the betscore for that match
     odds: Decimal
     betStatus: NFLBetStatus
-    maxPayout: Int
     betType:NFLBetType
     users:[Party]
 
@@ -166,17 +168,15 @@ template NFLBetProposal
           bet
        
     
-    choice Transfer_Reject: ContractId UserNFLAccount
-      controller user
-      do
-        (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (betType, user)
-        create userNFLAccount
-
-    choice Transfer_Cancel: ContractId UserNFLAccount
+    choice NFLBetProposal_Reject: ()
       controller betType.issuer
       do
-        (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (betType, user)
-        create userNFLAccount
+        return ()
+
+    choice NFLBetProposal_Cancel: ()
+      controller user
+      do
+        return ()
 
 template UserNFLAccountProposal
   with

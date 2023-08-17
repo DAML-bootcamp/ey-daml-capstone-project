@@ -1,76 +1,221 @@
-module TestF1 where
+module TestNFL where
 
 import Daml.Script
-import F1TestSetup
-import F1UserBetting
+import NFLTestSetup
+import NFLMatchBet
+--import F1UserBetting
 
 data TestParties = TestParties
     with
         house: Party
         userA: Party
-        betType: F1BetType
-        f1UserAccountCid: ContractId UserF1Account
+        betType: NFLBetType
+        nflUserAccountCid: ContractId UserNFLAccount
 
 setupParties : Script TestParties
 setupParties = script do
     house <- allocateParty "House"
     userA <- allocateParty "UserA"
     let 
-        betType = F1BetType with
+        betType = NFLBetType with
             issuer = house
-    f1UserAccountCid <- submitMulti [userA, betType.issuer] [] do
-        createCmd UserF1Account with
+            betType="overs"
+    nflHouseAccountCid <- submit house do
+        createCmd UserNFLAccount with
             betType
-            user = userA
+            user = house
             bets = []
-            balance = 100.0
+            balance = 400.0
+    nflUserAccountProposalCid <- submit house do
+        exerciseCmd nflHouseAccountCid NFL_InviteNewUser with
+            recipient = userA
+    
+    nflUserAccountCid <- submit userA do
+        exerciseCmd nflUserAccountProposalCid UserNFLAccountProposal_Accept
     let
         tp = TestParties with ..
     return tp
 
 
--- 1. Happy Path: User Account Creation
 
--- createUserF1Account : Script (ContractId UserF1Account)
--- createUserF1Account = script do
---     tp@TestParties{..} <- setupParties
+-- 1. Happy Path: Cancel Bet
+testCancelNFLBetProposal = script do
+    tp@TestParties{..} <- setupParties
+   
+    (testNFLTeams@TestNFLTeams{..}) <- setupNFLTeams
 
---     f1UserAccountCid <- submitMulti [userA, betType.issuer] [] do
---         createCmd UserF1Account with
---             betType
---             user = userA
---             bets = []
---             balance = 100.0
+    let 
+        match = MatchType with
+            matchNo = 1
 
---     return f1UserAccountCid
-
--- 2. Happy Path: Cancel Bet
-
-    -- Create Bet
     
-    -- Get Bet Payload
-        
+    -- Create Bet
+    betCid <- submit house do
+        createCmd NFLMatchBet with
+            issuer = house
+            match 
+            betType
+            userBets = []
+            betStatus = Open
+            odds = 0.1
+            users=[]
+    --Create a bet payload for user
+    let 
+        userBet=UserBet with
+            user=userA
+            betScore=22
+            betAmount=100.0
+            oversunders="overs"
+            matchNo=1
+
+
     -- Create Bet Proposal
+    nflBetProposalCid <- submit userA do
+        createCmd NFLBetProposal with
+            bet = userBet
+            user = userA
+            betType
     
     -- Cancel Bet Proposal
+    submit userA do
+        exerciseCmd nflBetProposalCid NFLBetProposal_Cancel
+    
+    return ()
+
+
 
 -- 3. Happy Path: Reject Bet
+testRejectNFLBetProposal = script do
+    tp@TestParties{..} <- setupParties
+   
+    (testNFLTeams@TestNFLTeams{..}) <- setupNFLTeams
+
+    let 
+        match = MatchType with
+            matchNo = 1
+
+    
     -- Create Bet
-    -- Get Bet Payload
-        
+    betCid <- submit house do
+        createCmd NFLMatchBet with
+            issuer = house
+            match 
+            betType
+            userBets = []
+            betStatus = Open
+            odds = 0.1
+            users=[]
+    --Create a bet payload for user
+    let 
+        userBet=UserBet with
+            user=userA
+            betScore=22
+            betAmount=100.0
+            oversunders="overs"
+            matchNo=1
+
+
     -- Create Bet Proposal
+    nflBetProposalCid <- submit userA do
+        createCmd NFLBetProposal with
+            bet = userBet
+            user = userA
+            betType
+    
     -- Reject Bet Proposal
+    submit house do
+        exerciseCmd nflBetProposalCid NFLBetProposal_Reject
+    
+    return ()
 
 -- 4. Happy Path: Create Bet, Accept Proposal
+testAcceptNFLBetProposal = script do
+    tp@TestParties{..} <- setupParties
+   
+    (testNFLTeams@TestNFLTeams{..}) <- setupNFLTeams
 
+    let 
+        match = MatchType with
+            matchNo = 1
 
+    
     -- Create Bet
-    -- Get Bet Payload
-        
+    betCid <- submit house do
+        createCmd NFLMatchBet with
+            issuer = house
+            match 
+            betType
+            userBets = []
+            betStatus = Open
+            odds = 0.1
+            users=[]
+    --Create a bet payload for user
+    let 
+        userBet=UserBet with
+            user=userA
+            betScore=22
+            betAmount=100.0
+            oversunders="overs"
+            matchNo=1
+
+
     -- Create Bet Proposal
+    nflBetProposalCid <- submit userA do
+        createCmd NFLBetProposal with
+            bet = userBet
+            user = userA
+            betType
     
     -- Accept Bet Proposal
+    submit house do
+        exerciseCmd nflBetProposalCid Transfer_Accept
+    
+    return ()
 -- 5. Happy Path : Create bet,accept proposal close bet
+testClosetNFLBet = script do
+    tp@TestParties{..} <- setupParties
+   
+    (testNFLTeams@TestNFLTeams{..}) <- setupNFLTeams
+
+    let 
+        match = MatchType with
+            matchNo = 1
+
+    
+    -- Create Bet
+    betCid <- submit house do
+        createCmd NFLMatchBet with
+            issuer = house
+            match 
+            betType
+            userBets = []
+            betStatus = Open
+            odds = 0.1
+            users=[]
+    --Create a bet payload for user
+    let 
+        userBet=UserBet with
+            user=userA
+            betScore=22
+            betAmount=100.0
+            oversunders="overs"
+            matchNo=1
+
+
+    -- Create Bet Proposal
+    nflBetProposalCid <- submit userA do
+        createCmd NFLBetProposal with
+            bet = userBet
+            user = userA
+            betType
+    
+    -- Accept Bet Proposal
+    submit house do
+        exerciseCmd nflBetProposalCid Transfer_Accept
+    --Change Bet status
+
+
+    return ()
 
 --6. Unhappy Path : Close an ongoing bet
 --7.
