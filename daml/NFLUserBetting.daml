@@ -1,0 +1,160 @@
+module NFLUserBetting where
+
+import SchedulingData
+import NFL_Season
+
+data NFLBetStatus = Open | Placed | Settled
+  deriving (Eq, Show)
+
+
+data NFLBetType = NFLBetType 
+  with
+    issuer: Party
+  deriving (Eq, Show)
+
+
+template NFLBet
+  with
+    issuer: Party
+    user: Party
+    betType: NFLBetType
+    match: Match
+    status: NFLBetStatus
+    odds: Decimal
+    amount: Decimal
+
+  where
+    signatory issuer
+    observer user
+
+    choice NFLBet_UpdateBetStatus: ContractId NFLBet
+      with
+        newBetStatus: NFLBetStatus
+
+      controller issuer
+      do
+        assertMsg  "Cannot update to the same status" $ newBetStatus == status
+        create this with status = newBetStatus
+    
+    choice NFLBet_UpdateBetOdds: ContractId NFLBet --updates with new odds of winning
+      with
+        newOdds: Decimal
+      controller issuer
+      do
+       -- assert (newOdds /= odds) "Cannot update to the same odds"
+        create this with odds = newOdds
+    
+    choice NFLBet_CloseBet: ContractId NFLBet
+      with
+        match: Match
+      controller user
+      do
+        assertMsg  "Bet is already closed" $ status /= Settled 
+        assertMsg  "Only placed bets may be closed" $ status /= Open 
+
+        (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (betType, user)
+
+        let payout = 0
+
+        if (raceWinner == racer) then do
+          create userNFLAccount with
+            balance = userNFLAccount.balance + amount
+        else
+          create userNFLAccount
+
+        create this with
+            status = Settled
+    
+    choice NFLBet_CloseBet_System: ContractId NFLBet
+      with
+        raceWinner: Racer
+      controller issuer
+      do
+        assertMsg  "Bet is already closed" $ status == Settled 
+        assertMsg  "Only placed bets may be closed" $ status == Open 
+
+        (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (betType, user)
+
+        let payout = 0
+
+        if (raceWinner == racer) then do
+          create userNFLAccount with
+            balance = userNFLAccount.balance + amount
+        else
+          create userNFLAccount
+
+        create this with
+            status = Settled
+
+
+template UserNFLAccount
+  with 
+    betType: NFLBetType
+    user: Party
+    bets: [ContractId NFLBet]
+    balance: Decimal
+
+  where
+    signatory user, betType.issuer
+
+    key (betType, user): (NFLBetType, Party) --key has to have atleast one party
+    maintainer key._1.issuer --1-1 relationship b/w asset and account
+
+    choice NFL_AddBalance: ContractId UserNFLAccount
+      with
+        additionalBalance: Decimal
+      
+      controller betType.issuer
+      do
+        assertMsg "Additional balance must be positive" $ additionalBalance > 0.0
+
+        create this with
+          balance = balance + additionalBalance
+    
+    choice NFL_AddBet: ContractId UserNFLAccount
+      with
+        nflBetCid: ContractId NFLBet
+        newBalance: Decimal
+      
+      controller betType.issuer
+      do
+        create this with
+          bets = bets ++ [nflBetCid]
+          balance = newBalance
+
+
+template NFLBetProposal
+  with
+    bet: NFLBet
+    user: Party
+  where 
+    signatory bet.betType.issuer
+    observer user 
+
+    choice NFLBetProposal_Accept: ContractId UserNFLAccount
+      controller user
+      do
+        (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (bet.betType, user)
+
+        assertMsg "Insufficient balance" $ userNFLAccount.balance >= bet.amount
+
+        nflBetCid <- create NFLBet with
+          issuer = bet.issuer
+          user = bet.user
+          betType = bet.betType
+          status = bet.status
+          odds = bet.odds
+          amount = bet.amount
+        
+        exercise userNFLAccountCid NFL_AddBet with 
+          nflBetCid = nflBetCid
+          newBalance = userNFLAccount.balance - bet.amount
+    
+    choice NFLBetProposal_Reject: ()
+      controller user
+      do
+        return ()
+    choice NFLBetProposal_Cancel: ()
+      controller bet.betType.issuer
+      do
+        return ()
