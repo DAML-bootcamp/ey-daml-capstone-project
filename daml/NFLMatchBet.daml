@@ -3,7 +3,7 @@ module NFLMatchBet where
 --import BetAccount
 import NFLSeason 
 
-data BetStatus = Open | Placed | Settled
+data NFLBetStatus = Open | Placed | Settled
   deriving (Eq, Show)
 
 data NFLBetType = NFLBetType 
@@ -31,7 +31,7 @@ template NFLMatchBet
     match:Match
     userBets: [UserBet] --represents each user and the betscore for that match
     odds: Decimal
-    betStatus: BetStatus
+    betStatus: NFLBetStatus
     maxPayout: Int
     betType:NFLBetType
     users:[Party]
@@ -44,7 +44,7 @@ template NFLMatchBet
     maintainer key._1.issuer 
     choice UpdateBetStatus: ContractId NFLMatchBet
       with
-        newBetStatus: BetStatus
+        newBetStatus: NFLBetStatus
       controller issuer
       do
         assertMsg  "Cannot update to the same status" $ newBetStatus == betStatus
@@ -142,13 +142,13 @@ template NFLBetProposal
     choice Transfer_Accept: ContractId NFLMatchBet
       controller betType.issuer
       do
-        (userF1AccountCid, userF1Account) <- fetchByKey @UserNFLAccount (betType, user)
+        (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (betType, user)
         (nflMatchBetCid, nflMatchBet) <- fetchByKey @NFLMatchBet (betType, bet.matchNo)
         
-        assertMsg "Insufficient balance" $ userF1Account.balance >= bet.betAmount
-        exercise userF1AccountCid NFL_AddBet with 
+        assertMsg "Insufficient balance" $ userNFLAccount.balance >= bet.betAmount
+        exercise userNFLAccountCid NFL_AddBet with 
           nflBetCid = nflMatchBetCid
-          newBalance = userF1Account.balance - bet.betAmount
+          newBalance = userNFLAccount.balance - bet.betAmount
              
         exercise nflMatchBetCid AddNewUserBet with  --adding new user bet to the central match contract
           bet
