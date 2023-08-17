@@ -1,6 +1,6 @@
 module NFLTestSetup where
 
-import NFL_Season
+import NFLSeason
 import SchedulingData
 import SetupParties
 import Daml.Script 
@@ -12,6 +12,7 @@ data TestNFLTeams = TestNFLTeams with
   cowBoys: NFLTeam
   eagles: NFLTeam
   sf29ers: NFLTeam
+
 
 setupNFLTeams = script do
   let
@@ -39,7 +40,7 @@ setupNFLTeams = script do
     ..
     
 
-setupTestMatches = script do
+setupNFLMatches = script do
 
   (testNFLTeams@TestNFLTeams{..}) <- setupNFLTeams
   (testParties@TestParties{..}) <- setupTestParties
@@ -73,20 +74,22 @@ setupTestMatches = script do
       matchStatus="Scheduled"
       winningTeam="NA"
       matchNo=3
+
+  let testMatches=[ match1, match2, match3]
   
-  return (testParties,match1, match2,match3,cityChiefs,cowBoys,eagles,sf29ers)
+  return (testParties,testMatches,testNFLTeams)
 
 
 setupNFLSeason = script do
-  (testParties@TestParties{..}, match1, match2,match3,cityChiefs,eagles,sf29ers,cowBoys) <- setupTestMatches
+  (testParties@TestParties{..}, testMatches,testNFLTeams) <- setupNFLMatches
   
 
   nflSeasonCid <- submit houseParty do
-    createCmd NFL_Season.Season with
+    createCmd NFLSeason.Season with
       house = houseParty
       users = usersParty
       year = 2023
-      matches = [match1, match2, match3]
-      teams=[cityChiefs,eagles,sf29ers,cowBoys]
+      matches = testMatches
+      teams=[testNFLTeams.cityChiefs,testNFLTeams.eagles,testNFLTeams.sf29ers,testNFLTeams.cowBoys]
 
   return (testParties, nflSeasonCid)

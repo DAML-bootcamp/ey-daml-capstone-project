@@ -87,42 +87,6 @@ template F1Bet
             status = Settled
 
 
-template UserF1Account
-  with 
-    betType: F1BetType
-    user: Party
-    bets: [ContractId F1Bet]
-    balance: Decimal
-
-  where
-    signatory user, betType.issuer
-
-    key (betType, user): (F1BetType, Party) --key has to have atleast one party
-    maintainer key._1.issuer --1-1 relationship b/w asset and account
-
-    choice F1_AddBalance: ContractId UserF1Account
-      with
-        additionalBalance: Decimal
-      
-      controller betType.issuer
-      do
-        assertMsg "Additional balance must be positive" $ additionalBalance > 0.0
-
-        create this with
-          balance = balance + additionalBalance
-    
-    choice F1_AddBet: ContractId UserF1Account
-      with
-        f1BetCid: ContractId F1Bet
-        newBalance: Decimal
-      
-      controller betType.issuer
-      do
-        create this with
-          bets = bets ++ [f1BetCid]
-          balance = newBalance
-
-
 template F1BetProposal
   with
     bet: F1Bet
@@ -158,5 +122,77 @@ template F1BetProposal
         return ()
     choice F1BetProposal_Cancel: ()
       controller bet.betType.issuer
+      do
+        return ()
+
+
+template UserF1Account
+  with 
+    betType: F1BetType
+    user: Party
+    bets: [ContractId F1Bet]
+    balance: Decimal
+
+  where
+    signatory user, betType.issuer
+
+    key (betType, user): (F1BetType, Party) --key has to have atleast one party
+    maintainer key._1.issuer --1-1 relationship b/w asset and account
+
+    choice F1_InviteNewUser: ContractId UserF1AccountProposal
+      with
+        recipient: Party
+      
+      controller betType.issuer
+      do
+        create UserF1AccountProposal with
+          account = this
+          recipient 
+
+    choice F1_AddBalance: ContractId UserF1Account
+      with
+        additionalBalance: Decimal
+      
+      controller betType.issuer
+      do
+        assertMsg "Additional balance must be positive" $ additionalBalance > 0.0
+
+        create this with
+          balance = balance + additionalBalance
+    
+    choice F1_AddBet: ContractId UserF1Account
+      with
+        f1BetCid: ContractId F1Bet
+        newBalance: Decimal
+      
+      controller betType.issuer
+      do
+        create this with
+          bets = bets ++ [f1BetCid]
+          balance = newBalance
+
+
+template UserF1AccountProposal
+  with
+    account: UserF1Account
+    recipient: Party
+  
+  where
+    signatory account.betType.issuer
+    observer recipient
+
+    choice UserF1AccountProposal_Accept: ContractId UserF1Account 
+      controller recipient
+      do
+        create account with
+          user = recipient
+
+    choice UserF1AccountProposal_Reject: ()
+      controller recipient
+      do
+        return ()
+
+    choice UserF1AccountProposal_Cancel: ()
+      controller account.betType.issuer
       do
         return ()

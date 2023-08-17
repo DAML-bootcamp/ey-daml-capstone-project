@@ -1,9 +1,9 @@
 module NFLMatchBet where
 
 --import BetAccount
-import NFL_Season 
+import NFLSeason 
 
-data BetStatus = Open | Placed | Settled
+data NFLBetStatus = Open | Placed | Settled
   deriving (Eq, Show)
 
 data NFLBetType = NFLBetType 
@@ -31,8 +31,7 @@ template NFLMatchBet
     match:Match
     userBets: [UserBet] --represents each user and the betscore for that match
     odds: Decimal
-    finalMatchScore: Int --represents final score of the match
-    betStatus: BetStatus
+    betStatus: NFLBetStatus
     maxPayout: Int
     betType:NFLBetType
     users:[Party]
@@ -45,7 +44,7 @@ template NFLMatchBet
     maintainer key._1.issuer 
     choice UpdateBetStatus: ContractId NFLMatchBet
       with
-        newBetStatus: BetStatus
+        newBetStatus: NFLBetStatus
       controller issuer
       do
         assertMsg  "Cannot update to the same status" $ newBetStatus == betStatus
@@ -72,7 +71,7 @@ template NFLMatchBet
     
     choice CalculateBetWinnings: [ContractId UserNFLAccount] -- calculates winners and amount to be paid out,Call BetAccount chioce Payout after this
       with
-        match: Match --represents the current match result
+        finalMatchScore: Int --represents the final total  match score
       controller issuer
       do
         assertMsg "Cannot calculate winnings for an ongoing bet" $ betStatus == Settled
@@ -96,6 +95,7 @@ template NFLMatchBet
     
         mapA createAccountForWinner winners
 
+
 template UserNFLAccount
   with 
     betType: NFLBetType
@@ -108,6 +108,16 @@ template UserNFLAccount
 
     key (betType, user): (NFLBetType, Party) --key has to have atleast one party
     maintainer key._1.issuer --1-1 relationship b/w asset and account
+
+    choice NFL_InviteNewUser: ContractId UserNFLAccountProposal
+      with
+        recipient: Party
+      
+      controller betType.issuer
+      do
+        create UserNFLAccountProposal with
+          account = this
+          recipient 
 
     choice NFL_AddBalance: ContractId UserNFLAccount
       with
@@ -131,6 +141,7 @@ template UserNFLAccount
           bets = bets ++ [nflBetCid]
           balance = newBalance
 
+
 template NFLBetProposal
   with
     bet: UserBet
@@ -143,13 +154,13 @@ template NFLBetProposal
     choice Transfer_Accept: ContractId NFLMatchBet
       controller betType.issuer
       do
-        (userF1AccountCid, userF1Account) <- fetchByKey @UserNFLAccount (betType, user)
+        (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (betType, user)
         (nflMatchBetCid, nflMatchBet) <- fetchByKey @NFLMatchBet (betType, bet.matchNo)
         
-        assertMsg "Insufficient balance" $ userF1Account.balance >= bet.betAmount
-        exercise userF1AccountCid NFL_AddBet with 
+        assertMsg "Insufficient balance" $ userNFLAccount.balance >= bet.betAmount
+        exercise userNFLAccountCid NFL_AddBet with 
           nflBetCid = nflMatchBetCid
-          newBalance = userF1Account.balance - bet.betAmount
+          newBalance = userNFLAccount.balance - bet.betAmount
              
         exercise nflMatchBetCid AddNewUserBet with  --adding new user bet to the central match contract
           bet
@@ -167,10 +178,27 @@ template NFLBetProposal
         (userNFLAccountCid, userNFLAccount) <- fetchByKey @UserNFLAccount (betType, user)
         create userNFLAccount
 
+template UserNFLAccountProposal
+  with
+    account: UserNFLAccount
+    recipient: Party
+  
+  where
+    signatory account.betType.issuer
+    observer recipient
 
-            
-        
+    choice UserNFLAccountProposal_Accept: ContractId UserNFLAccount 
+      controller recipient
+      do
+        create account with
+          user = recipient
 
-       
+    choice UserNFLAccountProposal_Reject: ()
+      controller recipient
+      do
+        return ()
 
-
+    choice UserNFLAccountProposal_Cancel: ()
+      controller account.betType.issuer
+      do
+        return ()
