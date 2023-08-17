@@ -1,0 +1,76 @@
+module TestF1 where
+
+import Daml.Script
+import F1TestSetup
+import F1UserBetting
+
+data TestParties = TestParties
+    with
+        house: Party
+        userA: Party
+        betType: F1BetType
+        f1UserAccountCid: ContractId UserF1Account
+
+setupParties : Script TestParties
+setupParties = script do
+    house <- allocateParty "House"
+    userA <- allocateParty "UserA"
+    let 
+        betType = F1BetType with
+            issuer = house
+    f1UserAccountCid <- submitMulti [userA, betType.issuer] [] do
+        createCmd UserF1Account with
+            betType
+            user = userA
+            bets = []
+            balance = 100.0
+    let
+        tp = TestParties with ..
+    return tp
+
+
+-- 1. Happy Path: User Account Creation
+
+-- createUserF1Account : Script (ContractId UserF1Account)
+-- createUserF1Account = script do
+--     tp@TestParties{..} <- setupParties
+
+--     f1UserAccountCid <- submitMulti [userA, betType.issuer] [] do
+--         createCmd UserF1Account with
+--             betType
+--             user = userA
+--             bets = []
+--             balance = 100.0
+
+--     return f1UserAccountCid
+
+-- 2. Happy Path: Cancel Bet
+
+    -- Create Bet
+    
+    -- Get Bet Payload
+        
+    -- Create Bet Proposal
+    
+    -- Cancel Bet Proposal
+
+-- 3. Happy Path: Reject Bet
+    -- Create Bet
+    -- Get Bet Payload
+        
+    -- Create Bet Proposal
+    -- Reject Bet Proposal
+
+-- 4. Happy Path: Create Bet, Accept Proposal
+
+
+    -- Create Bet
+    -- Get Bet Payload
+        
+    -- Create Bet Proposal
+    
+    -- Accept Bet Proposal
+-- 5. Happy Path : Create bet,accept proposal close bet
+
+--6. Unhappy Path : Close an ongoing bet
+--7.
