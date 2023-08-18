@@ -4,6 +4,7 @@ import Daml.Script
 import F1TestSetup
 import F1UserBetting
 import F1Scheduling
+import SchedulingData
 
 data TestParties = TestParties
     with
@@ -45,7 +46,6 @@ testCreateRace = script do
 
     return ()
 
-
 -- 2. Race Scheduling: Create Race and Add User
 testRaceAddUser = script do
     tp@TestParties{..} <- setupParties
@@ -67,19 +67,158 @@ testRaceAddUser = script do
     return ()
 
 -- 3. Race Scheduling: Update Leaderboard Position
+testUpdateLeaderboardPosition = script do
+    tp@TestParties{..} <- setupParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    positions <- setupRacerPositions
+
+    raceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = leaderboards._3
+            status = "In Progress"
+
+    submit house do
+        exerciseCmd raceCid UpdateLeaderboardPosition with
+            racerPositions = [positions._1, positions._2,positions._3, positions._4,positions._5, positions._6,positions._7, positions._8]
+
+    return ()
 
 -- 4. Race Scheduling: Update Race Status
+testUpdateRaceStatus = script do
+    tp@TestParties{..} <- setupParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
 
+    raceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = leaderboards._3
+            status = "In Progress"
+
+    submit house do
+        exerciseCmd raceCid UpdateRaceStatus with
+            newStatus = "Finished"
+    return ()
 -- 5. Race Scheduling: Create Season
+testCreateSeason = script do
+    tp@TestParties{..} <- setupParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    getRaces <- setupTestRaces
+    getRacers@TestRacers{..} <- setupTestRacers
 
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            users = [user1]
+            year = 2024
+            races = [getRaces._2]
+            racers = [verstappen, perez, leclerc, sainz, hamilton, russell, norris, piastri]
+            championshipStandings = getRaces._5
+            status = "Upcoming"
+
+    return ()
 -- 6. Race Scheduling: Season Add User
+testSeasonAddUser = script do
+    tp@TestParties{..} <- setupParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    getRaces <- setupTestRaces
+    getRacers@TestRacers{..} <- setupTestRacers
+
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            users = [user1]
+            year = 2024
+            races = [getRaces._2]
+            racers = [verstappen, perez, leclerc, sainz, hamilton, russell, norris, piastri]
+            championshipStandings = getRaces._5
+            status = "Upcoming"
+    submit house do
+        exerciseCmd seasonCid Season_AddUser with
+            user = user1
+    return ()
 
 -- 7. Race Scheduling: Season Add Racer
+testSeasonAddRacer = script do
+    tp@TestParties{..} <- setupParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    getRaces <- setupTestRaces
+    getRacers@TestRacers{..} <- setupTestRacers
+    getTeams@TestTeams{..} <- setupTeams
+
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            users = [user1]
+            year = 2024
+            races = [getRaces._2]
+            racers = [verstappen, perez, leclerc, sainz, hamilton, russell, norris, piastri]
+            championshipStandings = getRaces._5
+            status = "Upcoming"
+    submit house do
+        let
+            alonso = Racer with
+                name = "Fernando Alonso"
+                speedScore = 6.00
+                --this isn't accurate
+                team = redbull 
+                number = 14
+                championshipStanding = 0
+
+        exerciseCmd seasonCid AddRacer with
+            newRacer = alonso
+    return ()
 
 -- 8. Race Scheduling: Season Update Championship Position
+testSeasonUpdateChampionshipPosition = script do
+    tp@TestParties{..} <- setupParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    getRaces <- setupTestRaces
+    getRacers@TestRacers{..} <- setupTestRacers
+    getTeams@TestTeams{..} <- setupTeams
 
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            users = [user1]
+            year = 2024
+            races = [getRaces._2]
+            racers = [verstappen, perez, leclerc, sainz, hamilton, russell, norris, piastri]
+            championshipStandings = getRaces._5
+            status = "Upcoming"
+    submit house do
+        exerciseCmd seasonCid UpdateChampionshipPosition with
+            racerPos = 
+    return ()
+    
 -- 9. Race Scheduling: Update Season Status
+test = script do
+    tp@TestParties{..} <- setupParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    getRaces <- setupTestRaces
+    getRacers@TestRacers{..} <- setupTestRacers
+    getTeams@TestTeams{..} <- setupTeams
 
-
-
-
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            users = [user1]
+            year = 2024
+            races = [getRaces._2]
+            racers = [verstappen, perez, leclerc, sainz, hamilton, russell, norris, piastri]
+            championshipStandings = getRaces._5
+            status = "Upcoming"
+    submit house do
+        exerciseCmd seasonCid UpdateSeasonStatus with
+            newStatus = "In Progress"
