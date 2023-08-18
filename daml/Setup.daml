@@ -1,0 +1,147 @@
+module Setup where
+
+import F1Scheduling
+import F1UserBetting
+import NFLMatchBet
+import F1TestSetup
+import Daml.Script
+
+data SandboxTestParties = SandboxTestParties
+    with
+        house: Party
+        userA: Party
+        userB: Party
+        userC: Party
+        betType: F1BetType
+        betTypeNFL: NFLBetType
+
+setupTestPartiesSandbox = script do
+    casino <- allocatePartyWithHint "House" (PartyIdHint "House")
+    alice <- allocatePartyWithHint "UserA" (PartyIdHint "UserA")
+    bob <- allocatePartyWithHint "UserB" (PartyIdHint "UserB")
+    charlie <- allocatePartyWithHint "UserC" (PartyIdHint "UserC")
+    let 
+        betType = F1BetType with
+          issuer = casino
+        betTypeNFL = NFLBetType with
+            issuer = casino
+            betType="overs"
+    
+    let
+        tp = SandboxTestParties with 
+            house = casino
+            userA = alice 
+            userB = bob
+            userC = charlie
+            betType
+            betTypeNFL
+    return tp
+
+sandboxSetup = script do
+    tp@SandboxTestParties{..} <- setupTestPartiesSandbox
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    racers@TestRacers{..} <- setupTestRacers
+    casino <- validateUserId "House"
+    alice <- validateUserId "UserA"
+    bob <- validateUserId "UserB"
+    charlie <- validateUserId "UserC"
+    createUser (User casino (Some house)) [CanActAs house]
+    createUser (User alice (Some userA)) [CanActAs userA]
+    createUser (User bob (Some userB)) [CanActAs userB]
+    createUser (User charlie (Some userC)) [CanActAs userC]
+
+    --Setup User A Account
+    f1HouseAccountCid <- submit house do
+        createCmd UserF1Account with
+            betType
+            user = house
+            bets = []
+            balance = 100.0
+
+    f1UserAAccountProposalCid <- submit house do
+        exerciseCmd f1HouseAccountCid F1_InviteNewUser with
+            recipient = userA
+    
+    f1UserAAccountCid <- submit userA do
+        exerciseCmd f1UserAAccountProposalCid UserF1AccountProposal_Accept
+
+    --Setup F1 Race
+    raceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = leaderboards._3
+            status = "In Progress"
+
+    submit house do
+        exerciseCmd raceCid Race_AddUser with
+            user = userA
+
+    --Create F1 Bet
+    betCid <- submit house do
+        createCmd F1Bet with
+            issuer = house
+            user = userA
+            betType
+            racer = verstappen
+            trackInfo = monaco
+            status = F1UserBetting.Open
+            odds = 3.0
+            amount = 5.0
+
+    --Setup User C Account
+    f1UserCAccountProposalCid <- submit house do
+        exerciseCmd f1HouseAccountCid F1_InviteNewUser with
+            recipient = userC
+
+    -- --Setup User B Account
+    -- nflHouseAccountCid <- submit house do
+    --     createCmd UserNFLAccount with
+    --         betType= betTypeNFL
+    --         user = house
+    --         bets = []
+    --         balance = 400.0
+
+    -- nflUserBAccountProposalCid <- submit house do
+    --     exerciseCmd nflHouseAccountCid NFL_InviteNewUser with
+    --         recipient = userB
+    
+    -- nflUserBAccountCid <- submit userB do
+    --     exerciseCmd nflUserBAccountProposalCid UserNFLAccountProposal_Accept
+
+    -- --Create NFL Bet
+    -- let 
+    --     match = MatchType with
+    --         matchNo = 1
+
+    -- betCid <- submit house do
+    --     createCmd NFLMatchBet with
+    --         issuer = house
+    --         match 
+    --         betType = betTypeNFL
+    --         userBets = []
+    --         betStatus = NFLMatchBet.Open
+    --         odds = 0.3
+    --         users=[]
+    
+    -- --Create Bet Proposal
+    -- let 
+    --     userBet=UserBet with
+    --         user=userB
+    --         betScore=22
+    --         betAmount=100.0
+    --         oversunders="overs"
+    --         matchNo=1
+    
+    -- nflBetProposalCid <- submit userB do
+    --     createCmd NFLBetProposal with
+    --         bet = userBet
+    --         user = userB
+    --         betType = betTypeNFL
+    --         userNFLAccountCid=nflUserBAccountCid
+    
+    return ()
+
+    
