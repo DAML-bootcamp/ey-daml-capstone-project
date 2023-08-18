@@ -1,6 +1,7 @@
 module SetupParties where
 
 import Daml.Script
+import F1UserBetting
 
 {--
 
@@ -8,16 +9,41 @@ import Daml.Script
 
 --}
 
-data TestParties = TestParties with
-  houseParty: Party
-  usersParty: [Party]
+data TestParties = TestParties
+    with
+        house: Party
+        userA: Party
+        userB: Party
+        betType: F1BetType
+        f1UserAAccountCid: ContractId UserF1Account
+        f1HouseAccountCid: ContractId UserF1Account
+        usersParty: [Party]
 
+setupTestParties : Script TestParties
 setupTestParties = script do
-  houseParty <- allocatePartyWithHint "HouseParty" (PartyIdHint "HouseParty")
-  userA <- allocatePartyWithHint "UserA" (PartyIdHint "UserA")
-  userB <- allocatePartyWithHint "UserB" (PartyIdHint "UserB")
-  userC <- allocatePartyWithHint "UserC" (PartyIdHint "UserC")
-  let
-    usersParty = [userA, userB, userC]
-  return TestParties with
-    ..
+    house <- allocateParty "House"
+    userA <- allocateParty "UserA"
+    userB <- allocateParty "UserB"
+    userC <- allocateParty "UserC"
+    let
+      usersParty = [userA, userB, userC]
+    let 
+      betType = F1BetType with
+          issuer = house
+  
+    f1HouseAccountCid <- submit house do
+        createCmd UserF1Account with
+            betType
+            user = house
+            bets = []
+            balance = 100.0
+
+    f1UserAAccountProposalCid <- submit house do
+        exerciseCmd f1HouseAccountCid F1_InviteNewUser with
+            recipient = userA
+    
+    f1UserAAccountCid <- submit userA do
+        exerciseCmd f1UserAAccountProposalCid UserF1AccountProposal_Accept
+    let
+        tp = TestParties with ..
+    return tp

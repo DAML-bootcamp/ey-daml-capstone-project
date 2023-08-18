@@ -2,7 +2,7 @@ module F1TestSetup where
 
 import F1Scheduling
 import SchedulingData
-import SetupPartiesAnthony
+import SetupParties
 import Daml.Script
 
 {--
@@ -242,41 +242,42 @@ setupRaceLeaderboards = script do
 
 --}
 
--- data TestRaces = TestRaces with
---   spa: Race
---   monaco: Race
---   silverstone: Race
+data TestRaces = TestRaces with
+  spa: Race
+  monaco: Race
+  silverstone: Race
 
--- setupTestRaces = script do
---   (testParties@TestParties{..}, spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
---   (testTrackInfos@TestTrackInfos{..}) <- setupTestTrackInfo
+setupTestRaces = script do
+  tp@TestParties{..} <- setupTestParties
+  (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
+  (testTrackInfos@TestTrackInfos{..}) <- setupTestTrackInfo
 
---   spaRace <- submit houseParty do
---     createCmd Race with
---       house = houseParty
---       users = usersParty
---       trackInfo = spa
---       leaderboard = spaLeaderboard
---       status = "Upcoming"
+  spaRace <- submit house do
+    createCmd Race with
+      house = house
+      users = usersParty
+      trackInfo = spa
+      leaderboard = spaLeaderboard
+      status = "Upcoming"
   
---   monacoRace <- submit houseParty do
---     createCmd Race with
---       house = houseParty
---       users = usersParty
---       trackInfo = monaco
---       leaderboard = monacoLeaderboard
---       status = "Upcoming"
+  monacoRace <- submit house do
+    createCmd Race with
+      house = house
+      users = usersParty
+      trackInfo = monaco
+      leaderboard = monacoLeaderboard
+      status = "Upcoming"
   
---   silverstoneRace <- submit houseParty do
---     createCmd Race with
---       house = houseParty
---       users = usersParty
---       trackInfo = silverstone
---       leaderboard = silverstoneLeaderboard
---       status = "Upcoming"
+  silverstoneRace <- submit house do
+    createCmd Race with
+      house = house
+      users = usersParty
+      trackInfo = silverstone
+      leaderboard = silverstoneLeaderboard
+      status = "Upcoming"
   
---   return (testParties, spaRace, monacoRace, silverstoneRace, championshipLeaderboard)
---setup matches for a nfl season
+  return (spaRace, monacoRace, silverstoneRace, championshipLeaderboard)
+
 
 {--
 
@@ -284,18 +285,44 @@ setupRaceLeaderboards = script do
 
 --}
 
--- setupSeason = script do
---   (testParties@TestParties{..}, spaRace, monacoRace, silverstoneRace, championshipLeaderboard) <- setupTestRaces
---   (testRacers@TestRacers{..}) <- setupTestRacers
+setupSeason = script do
+  tp@TestParties{..} <- setupTestParties
+  (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
+  (testTrackInfos@TestTrackInfos{..}) <- setupTestTrackInfo
+  (testRacers@TestRacers{..}) <- setupTestRacers
 
---   seasonCid <- submit houseParty do
---     createCmd F1Scheduling.Season with
---       house = houseParty
---       users = usersParty
---       year = 2023
---       races = [spaRace, monacoRace, silverstoneRace]
---       racers = [verstappen, perez, hamilton, russell, leclerc, sainz, norris, piastri]
---       championshipStandings = championshipLeaderboard
---       status = "Upcoming"
+  spaRace <- submit house do
+    createCmd Race with
+      house = house
+      users = usersParty
+      trackInfo = spa
+      leaderboard = spaLeaderboard
+      status = "Upcoming"
+  
+  monacoRace <- submit house do
+    createCmd Race with
+      house = house
+      users = usersParty
+      trackInfo = monaco
+      leaderboard = monacoLeaderboard
+      status = "Upcoming"
+  
+  silverstoneRace <- submit house do
+    createCmd Race with
+      house = house
+      users = usersParty
+      trackInfo = silverstone
+      leaderboard = silverstoneLeaderboard
+      status = "Upcoming"
 
---   return (testParties, seasonCid)
+  seasonCid <- submit house do
+    createCmd F1Scheduling.Season with
+      house = house
+      users = usersParty
+      year = 2023
+      races = [spaRace, monacoRace, silverstoneRace]
+      racers = [verstappen, perez, hamilton, russell, leclerc, sainz, norris, piastri]
+      championshipStandings = championshipLeaderboard
+      status = "Upcoming"
+
+  return seasonCid

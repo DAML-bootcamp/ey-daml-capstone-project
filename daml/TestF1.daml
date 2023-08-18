@@ -4,49 +4,13 @@ import Daml.Script
 import F1TestSetup
 import F1UserBetting
 import F1Scheduling
+import SetupParties
 import DA.List 
 
-data TestParties = TestParties
-    with
-        house: Party
-        userA: Party
-        userB: Party
-        betType: F1BetType
-        f1UserAAccountCid: ContractId UserF1Account
-        f1HouseAccountCid: ContractId UserF1Account
-
-setupParties : Script TestParties
-setupParties = script do
-    house <- allocateParty "House"
-    userA <- allocateParty "UserA"
-    userB <- allocateParty "UserB"
-    let 
-        betType = F1BetType with
-            issuer = house
-    
-    f1HouseAccountCid <- submit house do
-        createCmd UserF1Account with
-            betType
-            user = house
-            bets = []
-            balance = 100.0
-
-    f1UserAAccountProposalCid <- submit house do
-        exerciseCmd f1HouseAccountCid F1_InviteNewUser with
-            recipient = userA
-    
-    f1UserAAccountCid <- submit userA do
-        exerciseCmd f1UserAAccountProposalCid UserF1AccountProposal_Accept
-    let
-        tp = TestParties with ..
-    return tp
-
-
 -- 1. Happy Path: User Account Proposal Accept
-
 testF1UserAccountProposalAccept : Script ()
 testF1UserAccountProposalAccept = script do
-    tp@TestParties{..} <- setupParties
+    tp@TestParties{..} <- setupTestParties
     f1UserBAccountProposalCid <- submit house do
         exerciseCmd f1HouseAccountCid F1_InviteNewUser with
             recipient = userB
@@ -57,10 +21,9 @@ testF1UserAccountProposalAccept = script do
     return ()
 
 -- 2. Happy Path: User Account Proposal Reject
-
 testF1UserAccountProposalReject : Script ()
 testF1UserAccountProposalReject = script do
-    tp@TestParties{..} <- setupParties
+    tp@TestParties{..} <- setupTestParties
     f1UserBAccountProposalCid <- submit house do
         exerciseCmd f1HouseAccountCid F1_InviteNewUser with
             recipient = userB
@@ -71,10 +34,9 @@ testF1UserAccountProposalReject = script do
     return ()
 
 -- 3. Happy Path: User Account Proposal Cancel
-
 testF1UserAccountProposalCancel : Script ()
 testF1UserAccountProposalCancel = script do
-    tp@TestParties{..} <- setupParties
+    tp@TestParties{..} <- setupTestParties
     f1UserBAccountProposalCid <- submit house do
         exerciseCmd f1HouseAccountCid F1_InviteNewUser with
             recipient = userB
@@ -84,10 +46,9 @@ testF1UserAccountProposalCancel = script do
 
     return ()
 
-
 -- 4. Happy Path: Cancel Bet
 testCancelF1BetProposal = script do
-    tp@TestParties{..} <- setupParties
+    tp@TestParties{..} <- setupTestParties
     racers@TestRacers{..} <- setupTestRacers
     tracks@TestTrackInfos{..} <- setupTestTrackInfo
 
@@ -117,11 +78,10 @@ testCancelF1BetProposal = script do
     
     return ()
 
-
 -- 5. Happy Path: Reject Bet
 testRejectF1BetProposal : Script ()
 testRejectF1BetProposal = script do
-    tp@TestParties{..} <- setupParties
+    tp@TestParties{..} <- setupTestParties
     racers@TestRacers{..} <- setupTestRacers
     tracks@TestTrackInfos{..} <- setupTestTrackInfo
 
@@ -153,7 +113,7 @@ testRejectF1BetProposal = script do
 
 -- 6. Happy Path: Create Bet, Accept Proposal
 testAcceptF1BetProposal = script do
-    tp@TestParties{..} <- setupParties
+    tp@TestParties{..} <- setupTestParties
     racers@TestRacers{..} <- setupTestRacers
     tracks@TestTrackInfos{..} <- setupTestTrackInfo
 
@@ -186,7 +146,7 @@ testAcceptF1BetProposal = script do
 
 -- 7. Happy Path: Create Bet, Create Race, Add User to Race, Close Bet -- Loss
 testCloseBet = script do
-    tp@TestParties{..} <- setupParties
+    tp@TestParties{..} <- setupTestParties
     (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
     tracks@TestTrackInfos{..}<- setupTestTrackInfo
     racers@TestRacers{..}<- setupTestRacers
@@ -242,10 +202,9 @@ testCloseBet = script do
             winningCid = head winningsCids
         exerciseCmd winningCid Winnings_Accept
 
-
 -- 8. Happy Path: Create Bet, Create Race, Add User to Race, Close Bet -- Win
 testCloseBetWin = script do
-    tp@TestParties{..} <- setupParties
+    tp@TestParties{..} <- setupTestParties
     (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
     tracks@TestTrackInfos{..}<- setupTestTrackInfo
     racers@TestRacers{..}<- setupTestRacers
@@ -300,4 +259,234 @@ testCloseBetWin = script do
             (winningsCids, winningsPayloads) = unzip winnings
             winningCid = head winningsCids
         exerciseCmd winningCid Winnings_Accept
+
+-- 9. Happy Path: Create Race
+testCreateRace = script do
+    tp@TestParties{..} <- setupTestParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+
+    submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = leaderboards._3
+            status = "In Progress"
+
+    return ()
+
+-- 10. Create Race and Add User
+testRaceAddUser = script do
+    tp@TestParties{..} <- setupTestParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+
+    raceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = leaderboards._3
+            status = "In Progress"
+
+    submit house do
+        exerciseCmd raceCid Race_AddUser with
+            user = userA
+
+    return ()
+
+    
+-- Unhappy Path: User Tries to Close Bet
+testCloseBetFail = script do
+    tp@TestParties{..} <- setupTestParties
+    (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
+    tracks@TestTrackInfos{..}<- setupTestTrackInfo
+    racers@TestRacers{..}<- setupTestRacers
+
+    -- Create Race
+    monacoRaceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = monacoLeaderboard
+            status = "In Progress"
+
+    -- Create Bet
+    betCid <- submit house do
+        createCmd F1Bet with
+            issuer = house
+            user = userA
+            betType
+            racer = verstappen
+            trackInfo = monaco
+            status = Open
+            odds = 2.8
+            amount = 5.0
+    
+        
+    -- Create Bet Proposal
+    f1BetProposalCid <- submit house do
+        createCmd F1BetProposal with
+            betCid
+            betType
+            user = userA
+    
+    -- Accept Bet Proposal
+    submit userA do
+        exerciseCmd f1BetProposalCid F1BetProposal_Accept
+    
+    response <- query @UserF1Account userA
+    let
+        (cids, payloads) = unzip response
+        accountPayload = head payloads
+        bCid = head accountPayload.bets
+
+    submitMustFail userA do 
+        exerciseCmd bCid F1Bet_CloseBet_System with
+            raceWinner = verstappen
+
+
+-- Unhappy Path: User Tries to Update Race Status
+testUpdateRaceStatusFail = script do
+    tp@TestParties{..} <- setupTestParties
+    (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
+    tracks@TestTrackInfos{..}<- setupTestTrackInfo
+    racers@TestRacers{..}<- setupTestRacers
+
+    -- Create Race
+    monacoRaceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = monacoLeaderboard
+            status = "In Progress"
+
+    -- Create Bet
+    betCid <- submit house do
+        createCmd F1Bet with
+            issuer = house
+            user = userA
+            betType
+            racer = verstappen
+            trackInfo = monaco
+            status = Open
+            odds = 2.8
+            amount = 5.0
+    
+        
+    -- Create Bet Proposal
+    f1BetProposalCid <- submit house do
+        createCmd F1BetProposal with
+            betCid
+            betType
+            user = userA
+    
+    -- Accept Bet Proposal
+    submit userA do
+        exerciseCmd f1BetProposalCid F1BetProposal_Accept
+
+    -- Add User to Race
+    newMonacoRaceCid <- submit house do
+        exerciseCmd monacoRaceCid Race_AddUser with
+            user = userA
+
+    -- Update Race Status to Finished
+    submitMustFail userA do
+        exerciseCmd newMonacoRaceCid UpdateRaceStatus with
+            newStatus = "Finished"
+
+-- Unhappy Path: Insufficient Balance
+testInsufficientBalance = script do
+    tp@TestParties{..} <- setupTestParties
+    (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
+    tracks@TestTrackInfos{..}<- setupTestTrackInfo
+    racers@TestRacers{..}<- setupTestRacers
+
+    -- Create Race
+    monacoRaceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = monacoLeaderboard
+            status = "In Progress"
+
+    -- Create Bet
+    betCid <- submit house do
+        createCmd F1Bet with
+            issuer = house
+            user = userA
+            betType
+            racer = verstappen
+            trackInfo = monaco
+            status = Open
+            odds = 2.8
+            amount = 105.0
+    
+        
+    -- Create Bet Proposal
+    f1BetProposalCid <- submit house do
+        createCmd F1BetProposal with
+            betCid
+            betType
+            user = userA
+    
+    -- Accept Bet Proposal
+    submitMustFail userA do
+        exerciseCmd f1BetProposalCid F1BetProposal_Accept
+
+-- Unhappy Path: Non Permissible Status Update
+testNonPermissableStatus = script do
+    tp@TestParties{..} <- setupTestParties
+    (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
+    tracks@TestTrackInfos{..}<- setupTestTrackInfo
+    racers@TestRacers{..}<- setupTestRacers
+
+    -- Create Race
+    monacoRaceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = monacoLeaderboard
+            status = "In Progress"
+
+    -- Create Bet
+    betCid <- submit house do
+        createCmd F1Bet with
+            issuer = house
+            user = userA
+            betType
+            racer = verstappen
+            trackInfo = monaco
+            status = Open
+            odds = 2.8
+            amount = 5.0
+    
+        
+    -- Create Bet Proposal
+    f1BetProposalCid <- submit house do
+        createCmd F1BetProposal with
+            betCid
+            betType
+            user = userA
+    
+    -- Accept Bet Proposal
+    submit userA do
+        exerciseCmd f1BetProposalCid F1BetProposal_Accept
+
+    -- Add User to Race
+    newMonacoRaceCid <- submit house do
+        exerciseCmd monacoRaceCid Race_AddUser with
+            user = userA
+
+    -- Update Race Status to Finished
+    submitMustFail house do
+        exerciseCmd newMonacoRaceCid UpdateRaceStatus with
+            newStatus = "Delay"
+
+-- Unhappy Path: User Tries to Update Race Positions
     
