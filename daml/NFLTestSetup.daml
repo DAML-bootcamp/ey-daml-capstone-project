@@ -45,9 +45,9 @@ setupNFLMatches = script do
   (testNFLTeams@TestNFLTeams{..}) <- setupNFLTeams
   (testParties@TestParties{..}) <- setupTestParties
 
-  match1 <- submit houseParty do
+  match1 <- submit house do
     createCmd Match with
-      house = houseParty
+      house = house
       users = usersParty
       teams= [cityChiefs,cowBoys]
       score=0
@@ -55,9 +55,9 @@ setupNFLMatches = script do
       winningTeam="NA"
       matchNo=1
   
-  match2 <- submit houseParty do
+  match2 <- submit house do
     createCmd Match with
-      house = houseParty
+      house = house
       users = usersParty
       teams= [eagles,sf29ers]
       score=0
@@ -65,9 +65,9 @@ setupNFLMatches = script do
       winningTeam="NA"
       matchNo=2
   
-  match3 <- submit houseParty do
+  match3 <- submit house do
     createCmd Match with
-      house = houseParty
+      house = house
       users = usersParty
       teams= [cowBoys,eagles]
       score=0
@@ -84,9 +84,9 @@ setupNFLSeason = script do
   (testParties@TestParties{..}, testMatches,testNFLTeams) <- setupNFLMatches
   
 
-  nflSeasonCid <- submit houseParty do
+  nflSeasonCid <- submit house do
     createCmd NFLSeason.Season with
-      house = houseParty
+      house = house
       users = usersParty
       year = 2023
       matches = testMatches

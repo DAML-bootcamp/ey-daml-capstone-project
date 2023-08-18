@@ -131,7 +131,7 @@ template Season
         newRacer: Racer
       controller house
       do
-        assertMsg "Racer already exists" (Prelude.any (\racer -> racer.name == newRacer.name) racers)
+        assertMsg "Racer already exists" (Prelude.any (\racer -> racer.name /= newRacer.name) racers)
         
         create this with
           racers = racers ++ [newRacer]

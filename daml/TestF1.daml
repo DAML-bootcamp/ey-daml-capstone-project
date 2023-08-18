@@ -5,6 +5,7 @@ import F1TestSetup
 import F1UserBetting
 import F1Scheduling
 import SetupParties
+import SchedulingData
 import DA.List 
 
 -- 1. Happy Path: User Account Proposal Accept
@@ -276,7 +277,7 @@ testCreateRace = script do
 
     return ()
 
--- 10. Create Race and Add User
+-- 10. Happy Path: Create Race and Add User
 testRaceAddUser = script do
     tp@TestParties{..} <- setupTestParties
     tracks@TestTrackInfos{..} <- setupTestTrackInfo
@@ -296,8 +297,185 @@ testRaceAddUser = script do
 
     return ()
 
+-- 11. Happy Path: Update Race Status
+testUpdateRaceStatus = script do
+    tp@TestParties{..} <- setupTestParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+
+    raceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = leaderboards._3
+            status = "In Progress"
+
+    submit house do
+        exerciseCmd raceCid UpdateRaceStatus with
+            newStatus = "Finished"
+    return ()
+
+-- 12. Happy Path: Update Leaderboard Position
+testUpdateLeaderboardPosition = script do
+    tp@TestParties{..} <- setupTestParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    positions <- setupRacerPositions
+    let
+        reversed = reverse positions
+    raceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = leaderboards._3
+            status = "In Progress"
+
+    submit house do
+        exerciseCmd raceCid UpdateLeaderboardPosition with
+            racerPositions = reversed
+
+    return ()
+
+-- 13. Happy Path: Create Season
+testCreateSeason = script do
+    tp@TestParties{..} <- setupTestParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    getRaces <- setupTestRaces
+    getRacers@TestRacers{..} <- setupTestRacers
+
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            users = [userA]
+            year = 2024
+            races = [getRaces._2]
+            racers = [verstappen, perez, leclerc, sainz, hamilton, russell, norris, piastri]
+            championshipStandings = leaderboards._4
+            status = "Upcoming"
+
+    return ()
+
+-- 14. Happy path: Add User to Season
+testSeasonAddUser = script do
+    tp@TestParties{..} <- setupTestParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    getRaces <- setupTestRaces
+    getRacers@TestRacers{..} <- setupTestRacers
+
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            users = [userA]
+            year = 2024
+            races = [getRaces._2]
+            racers = [verstappen, perez, leclerc, sainz, hamilton, russell, norris, piastri]
+            championshipStandings = leaderboards._4
+            status = "Upcoming"
+    submit house do
+        exerciseCmd seasonCid Season_AddUser with
+            user = userB
+    return ()
+
+-- 15. Happy Path: Season Add Racer
+testSeasonAddRacer = script do
+    tp@TestParties{..} <- setupTestParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    getRaces <- setupTestRaces
+    getRacers@TestRacers{..} <- setupTestRacers
+    getTeams@TestTeams{..} <- setupTeams
+
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            users = [userA]
+            year = 2024
+            races = [getRaces._2]
+            racers = [verstappen]
+            championshipStandings = getRaces._4
+            status = "Upcoming"
+    submit house do
+        exerciseCmd seasonCid AddRacer with
+            newRacer = perez
+    return ()
+
+-- 16. Happy Path: Season Update Championship Position
+testSeasonUpdateChampionshipPosition = script do
+    tp@TestParties{..} <- setupTestParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    getRaces <- setupTestRaces
+    getRacers@TestRacers{..} <- setupTestRacers
+    getTeams@TestTeams{..} <- setupTeams
+
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            users = [userA]
+            year = 2024
+            races = [getRaces._2]
+            racers = [verstappen, perez, leclerc, sainz, hamilton, russell, norris, piastri]
+            championshipStandings = getRaces._4
+            status = "Upcoming"
+    submit house do
+        exerciseCmd seasonCid UpdateChampionshipPosition with
+            racerPos = RacerPosition with
+                racer = verstappen
+                position = 12
+    return ()
+
+-- 17. Happy Path: Update Season Status
+testUpdateSeasonStatus = script do
+    tp@TestParties{..} <- setupTestParties
+    getRacers@TestRacers{..} <- setupTestRacers
+    getTeams@TestTeams{..} <- setupTeams
+
+    (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
+    (testTrackInfos@TestTrackInfos{..}) <- setupTestTrackInfo
+
+    spaRace <- submit house do
+        createCmd Race with
+            house = house
+            users = usersParty
+            trackInfo = spa
+            leaderboard = spaLeaderboard
+            status = "Upcoming"
     
--- Unhappy Path: User Tries to Close Bet
+    monacoRace <- submit house do
+        createCmd Race with
+            house = house
+            users = usersParty
+            trackInfo = monaco
+            leaderboard = monacoLeaderboard
+            status = "Upcoming"
+    
+    silverstoneRace <- submit house do
+        createCmd Race with
+            house = house
+            users = usersParty
+            trackInfo = silverstone
+            leaderboard = silverstoneLeaderboard
+            status = "Upcoming"
+
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            users = [userA]
+            year = 2024
+            races = [spaRace, monacoRace, silverstoneRace]
+            racers = [verstappen, perez, leclerc, sainz, hamilton, russell, norris, piastri]
+            championshipStandings = championshipLeaderboard
+            status = "Upcoming"
+
+    submit house do
+        exerciseCmd seasonCid UpdateSeasonStatus with
+            newStatus = "In Progress"
+
+-- 1. Unhappy Path: User Tries to Close Bet
 testCloseBetFail = script do
     tp@TestParties{..} <- setupTestParties
     (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
@@ -348,7 +526,7 @@ testCloseBetFail = script do
             raceWinner = verstappen
 
 
--- Unhappy Path: User Tries to Update Race Status
+-- 2. Unhappy Path: User Tries to Update Race Status
 testUpdateRaceStatusFail = script do
     tp@TestParties{..} <- setupTestParties
     (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
@@ -398,7 +576,7 @@ testUpdateRaceStatusFail = script do
         exerciseCmd newMonacoRaceCid UpdateRaceStatus with
             newStatus = "Finished"
 
--- Unhappy Path: Insufficient Balance
+-- 3. Unhappy Path: Insufficient Balance
 testInsufficientBalance = script do
     tp@TestParties{..} <- setupTestParties
     (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
@@ -438,7 +616,7 @@ testInsufficientBalance = script do
     submitMustFail userA do
         exerciseCmd f1BetProposalCid F1BetProposal_Accept
 
--- Unhappy Path: Non Permissible Status Update
+-- 4. Unhappy Path: Non Permissible Status Update
 testNonPermissableStatus = script do
     tp@TestParties{..} <- setupTestParties
     (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
@@ -488,5 +666,24 @@ testNonPermissableStatus = script do
         exerciseCmd newMonacoRaceCid UpdateRaceStatus with
             newStatus = "Delay"
 
--- Unhappy Path: User Tries to Update Race Positions
-    
+-- 5. Unhappy Path: User Tries to Update Race Positions
+testUpdateLeaderboardPositionFail = script do
+    tp@TestParties{..} <- setupTestParties
+    tracks@TestTrackInfos{..} <- setupTestTrackInfo
+    leaderboards <- setupRaceLeaderboards
+    positions <- setupRacerPositions
+    let
+        reversed = reverse positions
+    raceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = leaderboards._3
+            status = "In Progress"
+
+    submitMustFail userA do
+        exerciseCmd raceCid UpdateLeaderboardPosition with
+            racerPositions = reversed
+
+    return ()

@@ -3,6 +3,8 @@ module TestNFL where
 import Daml.Script
 import NFLTestSetup
 import NFLMatchBet
+import NFLSeason
+import SchedulingData
 import DA.List (head)
 
 
@@ -178,6 +180,7 @@ testAcceptNFLBetProposal = script do
         exerciseCmd nflBetProposalCid Transfer_Accept
     
     return ()
+
 -- 4. Happy Path : Create bet,accept proposal close bet
 testCloseNFLBet = script do
     tp@TestParties{..} <- setupParties
@@ -320,7 +323,177 @@ testCloseMultipleNFLBet = script do
             finalMatchScore=20 
     
     return ()
---6. Unhappy Path : Close an ongoing bet
+
+-- 6. Happy Path: Create Match
+testCreateMatch = script do
+    tp@TestParties{..} <- setupParties
+    TestNFLTeams{..} <- setupNFLTeams
+
+    newMatch <- submit house do
+        createCmd Match with
+            house
+            users = [userA]
+            teams = [cityChiefs, sf29ers]
+            score = 0
+            matchStatus = "In Progress"
+            winningTeam = "NA"
+            matchNo = 1
+
+    return ()
+
+-- 7. Happy Path: Test Match Add User
+testMatchAddUser = script do
+    tp@TestParties{..} <- setupParties
+    TestNFLTeams{..} <- setupNFLTeams
+
+    newMatch <- submit house do
+        createCmd Match with
+            house
+            users = [userA]
+            teams = [cityChiefs, sf29ers]
+            score = 0
+            matchStatus = "In Progress"
+            winningTeam = "NA"
+            matchNo = 1
+    
+    submit house do
+        exerciseCmd newMatch MatchAddUser with
+            user = userB
+
+    return ()
+
+-- 8. Happy Path: Test Update score
+testMatchUpdateScore = script do
+    tp@TestParties{..} <- setupParties
+    TestNFLTeams{..} <- setupNFLTeams
+
+    newMatch <- submit house do
+        createCmd Match with
+            house
+            users = [userA]
+            teams = [cityChiefs, sf29ers]
+            score = 0
+            matchStatus = "In Progress"
+            winningTeam = "NA"
+            matchNo = 1
+    
+    submit house do
+        exerciseCmd newMatch UpdateScore with
+            newScore = 28
+
+    return ()
+
+-- 9. Happy Path: Test Update Match Status
+testUpdateMatchStatus = script do
+    tp@TestParties{..} <- setupParties
+    TestNFLTeams{..} <- setupNFLTeams
+
+    newMatch <- submit house do
+        createCmd Match with
+            house
+            users = [userA]
+            teams = [cityChiefs, sf29ers]
+            score = 0
+            matchStatus = "In Progress"
+            winningTeam = "NA"
+            matchNo = 1
+    
+    submit house do
+        exerciseCmd newMatch UpdateMatchStatus with
+            newMatchStatus = "Finished"
+            winningTeam = "sf29ers"
+
+    return ()
+
+-- 10. Happy Path: Create Season
+testCreateSeason = script do
+    tp@TestParties{..} <- setupParties
+    TestNFLTeams{..} <- setupNFLTeams
+
+    seasonCid <- submit house do
+        createCmd Season with
+            house
+            year = 2023
+            matches = []
+            teams = [cityChiefs, cowBoys, eagles, sf29ers]
+            users = [userA]
+
+    return ()
+
+--11. Happy Path: Test Season Add User
+testSeasonAddUser = script do
+    tp@TestParties{..} <- setupParties
+    TestNFLTeams{..} <- setupNFLTeams
+
+    newSeason <- submit house do
+        createCmd Season with
+            house
+            year = 2023
+            matches = []
+            teams = [cityChiefs, cowBoys, eagles, sf29ers]
+            users = [userA]
+
+    submit house do
+        exerciseCmd newSeason SeasonAddUser with
+            user = userA
+
+    return ()
+
+-- 12. Happy Path: Test Season Add Match 
+testSeasonAddMatch = script do
+    tp@TestParties{..} <- setupParties
+    TestNFLTeams{..} <- setupNFLTeams
+
+    newSeason <- submit house do
+        createCmd Season with
+            house
+            year = 2023
+            matches = []
+            teams = [cityChiefs, cowBoys, eagles, sf29ers]
+            users = [userA]
+
+    match1 <- submit house do
+        createCmd Match with
+            house = house
+            users = [userA]
+            teams= [cityChiefs,cowBoys]
+            score=0
+            matchStatus="Scheduled"
+            winningTeam="NA"
+            matchNo=1
+
+    submit house do
+        exerciseCmd newSeason AddMatch with
+            game = match1
+            
+    return ()
+
+-- 13. Happy Path: Test Season Add Team 
+testSeasonAddTeam = script do
+    tp@TestParties{..} <- setupParties
+    TestNFLTeams{..} <- setupNFLTeams
+
+    newSeason <- submit house do
+        createCmd Season with
+            house
+            year = 2023
+            matches = []
+            teams = [cityChiefs, cowBoys, eagles, sf29ers]
+            users = [userA]
+
+    submit house do
+        let 
+            bengals = NFLTeam with
+                name = "CINCINNATI BENGALS"
+                avgWinDiffScore = 11.00
+                strategyScore = 11.00
+
+        exerciseCmd newSeason AddTeam with
+            team = bengals
+
+    return ()
+
+--14. Unhappy Path : Close an ongoing bet
 testCloseOngoingBet=script do
     tp@TestParties{..} <- setupParties
    
@@ -366,12 +539,13 @@ testCloseOngoingBet=script do
 
     --Payout the winnings
 
-    submit  house do 
+    submitMustFail house do 
         exerciseCmd newBetContractID CalculateBetWinnings with
             finalMatchScore=20 
 
     return ()
---7.Unhappy Path : insufficent balance for bet
+
+--15. Unhappy Path : insufficent balance for bet
 testLowBalanceBet=script do
     tp@TestParties{..} <- setupParties
    
@@ -411,7 +585,7 @@ testLowBalanceBet=script do
             userNFLAccountCid=nflUserAccountCid
     
     -- Accept Bet Proposal
-    newBetContractID<-submit house do
+    newBetContractID<-submitMustFail house do
         exerciseCmd nflBetProposalCid Transfer_Accept
 
     return ()
