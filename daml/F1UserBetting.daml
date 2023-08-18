@@ -70,60 +70,78 @@ template F1Bet
         raceWinner: Racer
       controller issuer
       do
-        assertMsg  "Bet is already closed" $ status == Settled 
-        assertMsg  "Only placed bets may be closed" $ status == Open 
+        assertMsg  "Bet is already closed" $ status /= Settled 
+        assertMsg  "Only placed bets may be closed" $ status /= Open 
 
         (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (betType, user)
 
-        let payout = 0
+        let payout = amount + (amount * (1.0 + odds))
+        newBetCid <- create this with
+            status = Settled
 
         if (raceWinner == racer) then do
-          create userF1Account with
-            balance = userF1Account.balance + amount
+          create Winnings with
+            account = userF1Account
+            accountCid = userF1AccountCid
+            oldBetCid = self
+            newBetCid
+            recipient = user
+            winnings = payout
         else
-          create userF1Account
+          create Winnings with 
+            account = userF1Account
+            accountCid = userF1AccountCid
+            oldBetCid = self
+            newBetCid
+            recipient = user
+            winnings = 0.0
 
-        create this with
-            status = Settled
+        return newBetCid
 
 
 template F1BetProposal
   with
-    bet: F1Bet
+    betCid: ContractId F1Bet
+    betType: F1BetType
     user: Party
 
   where 
-    signatory bet.betType.issuer
+    signatory betType.issuer
     observer user 
 
     choice F1BetProposal_Accept: ContractId UserF1Account
       controller user
       do
-        (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (bet.betType, user)
-
+        (userF1AccountCid, userF1Account) <- fetchByKey @UserF1Account (betType, user)
+        bet <- fetch betCid
         assertMsg "Insufficient balance" $ userF1Account.balance >= bet.amount
-
+        archive betCid
+        
         f1BetCid <- create F1Bet with
           issuer = bet.issuer
           user = bet.user
           betType = bet.betType
           racer = bet.racer
           trackInfo = bet.trackInfo
-          status = bet.status
+          status = Placed
           odds = bet.odds
           amount = bet.amount
         
         exercise userF1AccountCid F1_AddBet with 
           f1BetCid = f1BetCid
           newBalance = userF1Account.balance - bet.amount
+
+        
     
     choice F1BetProposal_Reject: ()
       controller user
       do
+        archive betCid
         return ()
     choice F1BetProposal_Cancel: ()
-      controller bet.betType.issuer
+      controller betType.issuer
       do
+        archive betCid
         return ()
 
 
@@ -197,3 +215,27 @@ template UserF1AccountProposal
       controller account.betType.issuer
       do
         return ()
+
+template Winnings
+    with
+      account: UserF1Account
+      accountCid: ContractId UserF1Account
+      oldBetCid: ContractId F1Bet
+      newBetCid: ContractId F1Bet
+      recipient: Party
+      winnings: Decimal
+    
+    where 
+      signatory account.betType.issuer
+      observer recipient
+      
+      choice Winnings_Accept: ContractId UserF1Account
+        controller recipient
+        do
+          account <- fetch accountCid
+          archive accountCid
+          let
+            filtered = filter (\x -> x/= oldBetCid) account.bets
+          create account with
+            balance = account.balance + winnings
+            bets = filtered <> [newBetCid]
