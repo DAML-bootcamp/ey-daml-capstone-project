@@ -3,18 +3,23 @@ module TestF1 where
 import Daml.Script
 import F1TestSetup
 import F1UserBetting
+import F1Scheduling
+import DA.List 
 
 data TestParties = TestParties
     with
         house: Party
         userA: Party
+        userB: Party
         betType: F1BetType
-        f1UserAccountCid: ContractId UserF1Account
+        f1UserAAccountCid: ContractId UserF1Account
+        f1HouseAccountCid: ContractId UserF1Account
 
 setupParties : Script TestParties
 setupParties = script do
     house <- allocateParty "House"
     userA <- allocateParty "UserA"
+    userB <- allocateParty "UserB"
     let 
         betType = F1BetType with
             issuer = house
@@ -25,35 +30,62 @@ setupParties = script do
             user = house
             bets = []
             balance = 100.0
-    
-    f1UserAccountProposalCid <- submit house do
+
+    f1UserAAccountProposalCid <- submit house do
         exerciseCmd f1HouseAccountCid F1_InviteNewUser with
             recipient = userA
     
-    f1UserAccountCid <- submit userA do
-        exerciseCmd f1UserAccountProposalCid UserF1AccountProposal_Accept
-
+    f1UserAAccountCid <- submit userA do
+        exerciseCmd f1UserAAccountProposalCid UserF1AccountProposal_Accept
     let
         tp = TestParties with ..
     return tp
 
 
--- 1. Happy Path: User Account Creation
+-- 1. Happy Path: User Account Proposal Accept
 
--- createUserF1Account : Script (ContractId UserF1Account)
--- createUserF1Account = script do
---     tp@TestParties{..} <- setupParties
+testF1UserAccountProposalAccept : Script ()
+testF1UserAccountProposalAccept = script do
+    tp@TestParties{..} <- setupParties
+    f1UserBAccountProposalCid <- submit house do
+        exerciseCmd f1HouseAccountCid F1_InviteNewUser with
+            recipient = userB
+    
+    f1UserBAccountCid <- submit userB do
+        exerciseCmd f1UserBAccountProposalCid UserF1AccountProposal_Accept
 
---     f1UserAccountCid <- submitMulti [userA, betType.issuer] [] do
---         createCmd UserF1Account with
---             betType
---             user = userA
---             bets = []
---             balance = 100.0
+    return ()
 
---     return f1UserAccountCid
+-- 2. Happy Path: User Account Proposal Reject
 
--- 2. Happy Path: Cancel Bet
+testF1UserAccountProposalReject : Script ()
+testF1UserAccountProposalReject = script do
+    tp@TestParties{..} <- setupParties
+    f1UserBAccountProposalCid <- submit house do
+        exerciseCmd f1HouseAccountCid F1_InviteNewUser with
+            recipient = userB
+    
+    f1UserBAccountCid <- submit userB do
+        exerciseCmd f1UserBAccountProposalCid UserF1AccountProposal_Reject
+
+    return ()
+
+-- 3. Happy Path: User Account Proposal Cancel
+
+testF1UserAccountProposalCancel : Script ()
+testF1UserAccountProposalCancel = script do
+    tp@TestParties{..} <- setupParties
+    f1UserBAccountProposalCid <- submit house do
+        exerciseCmd f1HouseAccountCid F1_InviteNewUser with
+            recipient = userB
+    
+    f1UserBAccountCid <- submit house do
+        exerciseCmd f1UserBAccountProposalCid UserF1AccountProposal_Cancel
+
+    return ()
+
+
+-- 4. Happy Path: Cancel Bet
 testCancelF1BetProposal = script do
     tp@TestParties{..} <- setupParties
     racers@TestRacers{..} <- setupTestRacers
@@ -71,14 +103,12 @@ testCancelF1BetProposal = script do
             status = Open
             odds = 0.1
             amount = 5.0
-    
-    -- Get Bet Payload
-    Some betPayload <- queryContractId userA betCid
         
     -- Create Bet Proposal
     f1BetProposalCid <- submit house do
         createCmd F1BetProposal with
-            bet = betPayload
+            betCid
+            betType
             user = userA
     
     -- Cancel Bet Proposal
@@ -88,7 +118,8 @@ testCancelF1BetProposal = script do
     return ()
 
 
--- 3. Happy Path: Reject Bet
+-- 5. Happy Path: Reject Bet
+testRejectF1BetProposal : Script ()
 testRejectF1BetProposal = script do
     tp@TestParties{..} <- setupParties
     racers@TestRacers{..} <- setupTestRacers
@@ -106,14 +137,12 @@ testRejectF1BetProposal = script do
             status = Open
             odds = 0.1
             amount = 5.0
-    
-    -- Get Bet Payload
-    Some betPayload <- queryContractId userA betCid
         
     -- Create Bet Proposal
     f1BetProposalCid <- submit house do
         createCmd F1BetProposal with
-            bet = betPayload
+            betCid
+            betType
             user = userA
     
     -- Reject Bet Proposal
@@ -122,7 +151,7 @@ testRejectF1BetProposal = script do
     
     return ()
 
--- 4. Happy Path: Create Bet, Accept Proposal
+-- 6. Happy Path: Create Bet, Accept Proposal
 testAcceptF1BetProposal = script do
     tp@TestParties{..} <- setupParties
     racers@TestRacers{..} <- setupTestRacers
@@ -141,13 +170,12 @@ testAcceptF1BetProposal = script do
             odds = 0.1
             amount = 5.0
     
-    -- Get Bet Payload
-    Some betPayload <- queryContractId userA betCid
         
     -- Create Bet Proposal
     f1BetProposalCid <- submit house do
         createCmd F1BetProposal with
-            bet = betPayload
+            betCid
+            betType
             user = userA
     
     -- Accept Bet Proposal
@@ -155,3 +183,121 @@ testAcceptF1BetProposal = script do
         exerciseCmd f1BetProposalCid F1BetProposal_Accept
     
     return ()
+
+-- 7. Happy Path: Create Bet, Create Race, Add User to Race, Close Bet -- Loss
+testCloseBet = script do
+    tp@TestParties{..} <- setupParties
+    (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
+    tracks@TestTrackInfos{..}<- setupTestTrackInfo
+    racers@TestRacers{..}<- setupTestRacers
+
+    -- Create Race
+    monacoRaceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = monacoLeaderboard
+            status = "In Progress"
+
+    -- Create Bet
+    betCid <- submit house do
+        createCmd F1Bet with
+            issuer = house
+            user = userA
+            betType
+            racer = perez
+            trackInfo = monaco
+            status = Open
+            odds = 0.1
+            amount = 5.0
+    
+        
+    -- Create Bet Proposal
+    f1BetProposalCid <- submit house do
+        createCmd F1BetProposal with
+            betCid
+            betType
+            user = userA
+    
+    -- Accept Bet Proposal
+    submit userA do
+        exerciseCmd f1BetProposalCid F1BetProposal_Accept
+
+    -- Add User to Race
+    newMonacoRaceCid <- submit house do
+        exerciseCmd monacoRaceCid Race_AddUser with
+            user = userA
+
+    -- Update Race Status to Finished
+    submit house do
+        exerciseCmd newMonacoRaceCid UpdateRaceStatus with
+            newStatus = "Finished"
+
+    -- Accept Winnings
+    winnings <- queryFilter @Winnings userA (\winnings -> winnings.recipient == userA)
+    submit userA do
+        let
+            (winningsCids, winningsPayloads) = unzip winnings
+            winningCid = head winningsCids
+        exerciseCmd winningCid Winnings_Accept
+
+
+-- 8. Happy Path: Create Bet, Create Race, Add User to Race, Close Bet -- Win
+testCloseBetWin = script do
+    tp@TestParties{..} <- setupParties
+    (spaLeaderboard, monacoLeaderboard, silverstoneLeaderboard, championshipLeaderboard) <- setupRaceLeaderboards
+    tracks@TestTrackInfos{..}<- setupTestTrackInfo
+    racers@TestRacers{..}<- setupTestRacers
+
+    -- Create Race
+    monacoRaceCid <- submit house do
+        createCmd Race with
+            house
+            users = []
+            trackInfo = monaco
+            leaderboard = monacoLeaderboard
+            status = "In Progress"
+
+    -- Create Bet
+    betCid <- submit house do
+        createCmd F1Bet with
+            issuer = house
+            user = userA
+            betType
+            racer = verstappen
+            trackInfo = monaco
+            status = Open
+            odds = 2.8
+            amount = 5.0
+    
+        
+    -- Create Bet Proposal
+    f1BetProposalCid <- submit house do
+        createCmd F1BetProposal with
+            betCid
+            betType
+            user = userA
+    
+    -- Accept Bet Proposal
+    submit userA do
+        exerciseCmd f1BetProposalCid F1BetProposal_Accept
+
+    -- Add User to Race
+    newMonacoRaceCid <- submit house do
+        exerciseCmd monacoRaceCid Race_AddUser with
+            user = userA
+
+    -- Update Race Status to Finished
+    submit house do
+        exerciseCmd newMonacoRaceCid UpdateRaceStatus with
+            newStatus = "Finished"
+
+    -- Accept Winnings
+    winnings <- queryFilter @Winnings userA (\winnings -> winnings.recipient == userA)
+    submit userA do
+        let
+            (winningsCids, winningsPayloads) = unzip winnings
+            winningCid = head winningsCids
+        exerciseCmd winningCid Winnings_Accept
+    
